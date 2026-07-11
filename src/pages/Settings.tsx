@@ -17,14 +17,12 @@ import {
   type LibraryPreferences,
 } from '../api/settings';
 
-type SettingsTab = 'profile' | 'library' | 'notifications' | 'security' | 'billing';
+type SettingsTab = 'profile' | 'library' | 'security';
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: 'profile', label: 'Profile' },
   { id: 'library', label: 'Library Preferences' },
-  { id: 'notifications', label: 'Notifications' },
   { id: 'security', label: 'Security' },
-  { id: 'billing', label: 'Billing' },
 ];
 
 const defaultProfile: AdminProfile = {
@@ -33,12 +31,6 @@ const defaultProfile: AdminProfile = {
   email: 'allison@oraculum.edu',
   phone: '',
   avatarUrl: 'https://i.pravatar.cc/150?u=allison',
-};
-
-const notificationDefaults = {
-  reservations: true,
-  overdue: true,
-  summary: false,
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -83,7 +75,6 @@ export const Settings = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [profile, setProfile] = useState<Partial<AdminProfile>>({});
   const [preferences, setPreferences] = useState<Partial<LibraryPreferences>>({});
-  const [notifications, setNotifications] = useState(notificationDefaults);
   const [passwords, setPasswords] = useState<ChangePasswordPayload>({
     currentPassword: '',
     newPassword: '',
@@ -364,52 +355,6 @@ export const Settings = () => {
           </form>
         );
 
-      case 'notifications':
-        return (
-          <div className="space-y-5">
-            <div>
-              <h2 className="text-[18px] font-bold text-charcoal">Notifications</h2>
-              <p className="mt-1 text-[13px] text-gray-500">
-                Choose which email updates you want to receive.
-              </p>
-            </div>
-
-            {[
-              {
-                key: 'reservations',
-                label: 'Email me on new reservations',
-                description: 'Receive an email when members reserve books.',
-              },
-              {
-                key: 'overdue',
-                label: 'Email me on overdue books',
-                description: 'Get alerts when borrowed books become overdue.',
-              },
-              {
-                key: 'summary',
-                label: 'Weekly summary report',
-                description: 'Receive a weekly snapshot of library activity.',
-              },
-            ].map((item) => (
-              <div
-                key={item.key}
-                className="flex items-center justify-between gap-5 rounded-xl border border-gray-100 px-4 py-4"
-              >
-                <div>
-                  <p className="text-[14px] font-semibold text-charcoal">{item.label}</p>
-                  <p className="mt-1 text-[12px] text-gray-500">{item.description}</p>
-                </div>
-                <Toggle
-                  checked={notifications[item.key as keyof typeof notifications]}
-                  onChange={(checked) =>
-                    setNotifications((current) => ({ ...current, [item.key]: checked }))
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        );
-
       case 'security':
         return (
           <div className="space-y-8">
@@ -483,15 +428,6 @@ export const Settings = () => {
           </div>
         );
 
-      case 'billing':
-        return (
-          <div>
-            <h2 className="text-[18px] font-bold text-charcoal">Billing</h2>
-            <p className="mt-1 text-[13px] text-gray-500">
-              Fine payment settings will appear here when payments are enabled.
-            </p>
-          </div>
-        );
     }
   };
 

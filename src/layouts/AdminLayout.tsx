@@ -12,7 +12,6 @@ import {
   Search,
   Calendar,
   ChevronDown,
-  Bell,
   Library
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -108,7 +107,9 @@ export const AdminLayout = () => {
           <div
             className={clsx(
               'relative min-w-0',
-              isCheckoutPage ? 'w-[420px] max-w-[48vw] flex-none' : 'flex-1 max-w-xl'
+              isCheckoutPage
+                ? 'w-[420px] min-w-[320px] max-w-[48vw] flex-none'
+                : 'w-[420px] min-w-[360px] max-w-xl flex-none'
             )}
           >
             {isCheckoutPage ? (
@@ -191,12 +192,6 @@ export const AdminLayout = () => {
               <Calendar className="w-4 h-4 text-gray-500 stroke-[1.5]" />
               <span className="text-[14px] text-charcoal font-medium">Last 6 months</span>
               <ChevronDown className="w-4 h-4 text-gray-500" />
-            </button>
-
-            {/* Notifications */}
-            <button className="relative p-2 text-gray-500 hover:text-charcoal transition-colors">
-              <Bell className="w-5 h-5 stroke-[1.5]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
 
             {/* Profile Chip */}
