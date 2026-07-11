@@ -1,0 +1,412 @@
+import { useEffect, useState } from 'react';
+import { AxiosError } from 'axios';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOutletContext } from 'react-router-dom';
+import { Search } from 'lucide-react';
+import clsx from 'clsx';
+import {
+  getBorrowRecords,
+  renewBorrowRecord,
+  returnBorrowRecord,
+} from '../api/borrow';
+import { createReservation } from '../api/reservations';
+import { useDebounce } from '../hooks/useDebounce';
+import type { AdminOutletContext } from '../layouts/AdminLayout';
+import type { BorrowRecord } from '../types';
+import { calculateFine } from '../utils/formatters';
+
+const statusStyles: Record<BorrowRecord['status'], string> = {
+  available: 'bg-green-50 text-green-600',
+  borrowed: 'bg-red-50 text-red-500',
+  renewed: 'bg-gray-100 text-gray-500',
+  reserved: 'bg-violet-50 text-violet-500',
+};
+
+const statusLabels: Record<BorrowRecord['status'], string> = {
+  available: 'Available',
+  borrowed: 'Borrowed',
+  renewed: 'Renewed',
+  reserved: 'Reserved',
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof AxiosError) {
+    const data = error.response?.data as { message?: string } | undefined;
+    return data?.message ?? fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
+const formatDate = (date: string | null) => {
+  if (!date) return '-';
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(date));
+};
+
+export const Borrow = () => {
+  const queryClient = useQueryClient();
+  const { checkoutSearchFields } = useOutletContext<AdminOutletContext>();
+  const [search, setSearch] = useState('');
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const debouncedSearch = useDebounce(search.trim(), 300);
+
+  const queryKey = ['borrow-records', debouncedSearch, checkoutSearchFields];
+
+  const {
+    data: records = [],
+    isLoading,
+    isFetching,
+    error: listError,
+  } = useQuery({
+    queryKey,
+    queryFn: () =>
+      getBorrowRecords({
+        query: debouncedSearch,
+        fields: checkoutSearchFields,
+      }),
+  });
+
+  const updateCachedRecord = (recordId: string, update: Partial<BorrowRecord>) => {
+    queryClient.setQueryData<BorrowRecord[]>(queryKey, (current) =>
+      current?.map((record) =>
+        record.id === recordId
+          ? {
+              ...record,
+              ...update,
+            }
+          : record
+      )
+    );
+  };
+
+  const returnMutation = useMutation({
+    mutationFn: async (record: BorrowRecord) => {
+      const response = await returnBorrowRecord(record.id);
+      return {
+        id: record.id,
+        fine: response.fine ?? calculateFine(record.dueDate, new Date().toISOString()),
+      };
+    },
+    onSuccess: ({ id, fine }) => {
+      updateCachedRecord(id, {
+        status: 'available',
+        returnedDate: new Date().toISOString(),
+        fine,
+      });
+      queryClient.invalidateQueries({ queryKey: ['borrow-records'] });
+      setActionError(null);
+      setActionMessage(
+        fine > 0 ? `Book returned. Overdue fine: $${fine.toFixed(2)}.` : 'Book returned.'
+      );
+    },
+    onError: (error) => {
+      setActionMessage(null);
+      setActionError(getErrorMessage(error, 'Unable to return this book. Please try again.'));
+    },
+  });
+
+  const renewMutation = useMutation({
+    mutationFn: (record: BorrowRecord) => renewBorrowRecord(record.id),
+    onSuccess: (updatedRecord) => {
+      updateCachedRecord(updatedRecord.id, updatedRecord);
+      queryClient.invalidateQueries({ queryKey: ['borrow-records'] });
+      setActionError(null);
+      setActionMessage('Loan renewed successfully.');
+    },
+    onError: (error) => {
+      setActionMessage(null);
+      setActionError(getErrorMessage(error, 'Unable to renew this loan. Please try again.'));
+    },
+  });
+
+  const reserveMutation = useMutation({
+    mutationFn: (record: BorrowRecord) =>
+      createReservation({
+        bookId: record.bookId,
+        memberId: record.memberId,
+      }).then(() => record),
+    onSuccess: (record) => {
+      updateCachedRecord(record.id, { status: 'reserved' });
+      queryClient.invalidateQueries({ queryKey: ['borrow-records'] });
+      setActionError(null);
+      setActionMessage('Book reserved successfully.');
+    },
+    onError: (error) => {
+      setActionMessage(null);
+      setActionError(getErrorMessage(error, 'Unable to reserve this book. Please try again.'));
+    },
+  });
+
+  useEffect(() => {
+    if (!actionMessage) return;
+
+    const timeout = window.setTimeout(() => {
+      setActionMessage(null);
+    }, 4500);
+
+    return () => window.clearTimeout(timeout);
+  }, [actionMessage]);
+
+  const listErrorMessage = listError
+    ? getErrorMessage(listError, 'Unable to load check-out records. Please try again.')
+    : null;
+
+  const isActionPending =
+    returnMutation.isPending || renewMutation.isPending || reserveMutation.isPending;
+
+  const renderActions = (record: BorrowRecord) => {
+    if (record.status === 'borrowed') {
+      return (
+        <>
+          <button
+            type="button"
+            disabled={isActionPending}
+            onClick={(event) => {
+              event.stopPropagation();
+              returnMutation.mutate(record);
+            }}
+            className="rounded-md bg-red-400 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Return
+          </button>
+          <button
+            type="button"
+            disabled={isActionPending || record.hasPendingReservations}
+            title={
+              record.hasPendingReservations
+                ? 'Disabled because this book has pending reservations.'
+                : undefined
+            }
+            onClick={(event) => {
+              event.stopPropagation();
+              renewMutation.mutate(record);
+            }}
+            className="rounded-md bg-gray-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Renew
+          </button>
+          <button
+            type="button"
+            disabled={isActionPending}
+            onClick={(event) => {
+              event.stopPropagation();
+              reserveMutation.mutate(record);
+            }}
+            className="rounded-md bg-charcoal px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-charcoal/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Reserve
+          </button>
+        </>
+      );
+    }
+
+    if (record.status === 'available') {
+      return (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setActionMessage(null);
+            setActionError('Check-out action is not wired yet.');
+          }}
+          className="rounded-md bg-amber-gold px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-amber-gold/90"
+        >
+          Check Out
+        </button>
+      );
+    }
+
+    if (record.status === 'renewed') {
+      return (
+        <>
+          <button
+            type="button"
+            disabled={isActionPending}
+            onClick={(event) => {
+              event.stopPropagation();
+              returnMutation.mutate(record);
+            }}
+            className="rounded-md bg-red-400 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Return
+          </button>
+          <button
+            type="button"
+            disabled={isActionPending}
+            onClick={(event) => {
+              event.stopPropagation();
+              reserveMutation.mutate(record);
+            }}
+            className="rounded-md bg-charcoal px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-charcoal/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Reserve
+          </button>
+        </>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        disabled={isActionPending}
+        onClick={(event) => {
+          event.stopPropagation();
+          reserveMutation.mutate(record);
+        }}
+        className="rounded-md bg-charcoal px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-charcoal/90 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        Reserve
+      </button>
+    );
+  };
+
+  return (
+    <div className="max-w-[1600px] mx-auto space-y-6 pb-8 font-sans">
+      <div className="flex justify-end">
+        <div className="relative w-full max-w-sm">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search Ex. ISBN, Title, Author, Member, etc"
+            className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-4 pr-11 text-[14px] text-charcoal outline-none transition-all placeholder:text-gray-400 focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
+          />
+          <Search className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        </div>
+      </div>
+
+      {listErrorMessage && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+          {listErrorMessage}
+        </div>
+      )}
+
+      {actionError && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+          {actionError}
+        </div>
+      )}
+
+      {actionMessage && (
+        <div className="rounded-xl border border-amber-gold/20 bg-amber-gold/10 px-4 py-3 text-sm font-medium text-charcoal">
+          {actionMessage}
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-2xl border border-gray-50 bg-white shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Member ID</th>
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Member</th>
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Title</th>
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Author</th>
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Borrowed Date</th>
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Returned Date</th>
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Status</th>
+                <th className="px-5 py-4 text-right text-[12px] font-bold text-charcoal">
+                  Action
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {isLoading &&
+                Array.from({ length: 8 }).map((_, rowIndex) => (
+                  <tr key={rowIndex} className="border-b border-gray-50 last:border-0">
+                    {Array.from({ length: 8 }).map((__, cellIndex) => (
+                      <td key={cellIndex} className="px-5 py-5">
+                        <div className="h-3 w-24 animate-pulse rounded-full bg-gray-100" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+
+              {!isLoading && records.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center">
+                    <p className="text-[15px] font-semibold text-charcoal">
+                      No check-out records yet
+                    </p>
+                    <p className="mt-1 text-[13px] text-gray-500">
+                      Check-out records will appear here.
+                    </p>
+                  </td>
+                </tr>
+              )}
+
+              {!isLoading &&
+                records.map((record) => {
+                  const isSelected = selectedRowId === record.id;
+
+                  return (
+                    <tr
+                      key={record.id}
+                      onClick={() => setSelectedRowId(record.id)}
+                      className={clsx(
+                        'group cursor-pointer border-b border-gray-50 transition-colors last:border-0 hover:bg-gray-50/80',
+                        isSelected && 'bg-gray-50/80'
+                      )}
+                    >
+                      <td className="px-5 py-4 text-[13px] text-gray-600">{record.memberId}</td>
+                      <td className="px-5 py-4 text-[13px] font-medium text-gray-700">
+                        {record.memberName}
+                      </td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">{record.title}</td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">{record.author}</td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        {formatDate(record.borrowedDate)}
+                      </td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        {formatDate(record.returnedDate)}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className={clsx(
+                            'inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold',
+                            statusStyles[record.status]
+                          )}
+                        >
+                          {statusLabels[record.status]}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div
+                          className={clsx(
+                            'flex justify-end gap-2 transition-opacity',
+                            isSelected
+                              ? 'opacity-100'
+                              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                          )}
+                        >
+                          {renderActions(record)}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+
+        {isFetching && !isLoading && (
+          <div className="border-t border-gray-50 px-5 py-3 text-[12px] font-medium text-gray-400">
+            Refreshing check-out records...
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
