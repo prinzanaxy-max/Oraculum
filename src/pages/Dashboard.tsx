@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 import clsx from 'clsx';
 import {
   getCheckoutStats,
@@ -62,8 +62,26 @@ const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, {
   minimumFractionDigits: value % 1 === 0 ? 0 : 2,
 })}`;
 
-const isPositiveChange = (stat: DashboardStat) =>
-  stat.direction === 'up' || stat.changePercent >= 0;
+const getChangeStyles = (direction: DashboardStat['direction']) => {
+  if (direction === 'up') {
+    return {
+      className: 'bg-green-50 text-green-600',
+      icon: <ArrowUpRight className="h-3 w-3" />,
+    };
+  }
+
+  if (direction === 'down') {
+    return {
+      className: 'bg-red-50 text-red-500',
+      icon: <ArrowDownRight className="h-3 w-3" />,
+    };
+  }
+
+  return {
+    className: 'bg-gray-100 text-gray-500',
+    icon: <Minus className="h-3 w-3" />,
+  };
+};
 
 const StatSkeleton = () => (
   <div className="h-[110px] rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
@@ -130,7 +148,7 @@ export const Dashboard = () => {
               const stat = statsQuery.data?.[config.key];
               if (!stat) return null;
 
-              const positive = isPositiveChange(stat);
+              const changeStyles = getChangeStyles(stat.direction);
 
               return (
                 <div
@@ -145,14 +163,10 @@ export const Dashboard = () => {
                     <div
                       className={clsx(
                         'flex items-center gap-0.5 rounded-full px-2 py-1 text-[12px] font-medium',
-                        positive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
+                        changeStyles.className
                       )}
                     >
-                      {positive ? (
-                        <ArrowUpRight className="h-3 w-3" />
-                      ) : (
-                        <ArrowDownRight className="h-3 w-3" />
-                      )}
+                      {changeStyles.icon}
                       {Math.abs(stat.changePercent)}%
                     </div>
                   </div>

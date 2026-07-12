@@ -3,10 +3,11 @@ import { api } from './axios';
 export interface DashboardStat {
   value: number;
   changePercent: number;
-  direction: 'up' | 'down';
+  direction: 'up' | 'down' | 'neutral';
 }
 
 export interface DashboardStats {
+  borrowRecords?: DashboardStat;
   borrowedBooks: DashboardStat;
   returnedBooks: DashboardStat;
   overdueBooks: DashboardStat;
