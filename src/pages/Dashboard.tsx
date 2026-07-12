@@ -257,22 +257,29 @@ export const Dashboard = () => {
         <div className="flex flex-col rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] lg:col-span-5 xl:col-span-4">
           <h3 className="mb-6 text-[16px] font-bold text-charcoal">Overdue's History</h3>
           <div className="flex-1 overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+            <table className="min-w-[720px] table-fixed border-collapse text-left">
+              <colgroup>
+                <col className="w-[110px]" />
+                <col className="w-[180px]" />
+                <col className="w-[160px]" />
+                <col className="w-[120px]" />
+                <col className="w-[90px]" />
+              </colgroup>
               <thead>
                 <tr>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                  <th className="whitespace-nowrap px-3 pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
                     Member ID
                   </th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                  <th className="whitespace-nowrap px-3 pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
                     Title
                   </th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                  <th className="whitespace-nowrap px-3 pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
                     ISBN
                   </th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                  <th className="whitespace-nowrap px-3 pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
                     Due Date
                   </th>
-                  <th className="pb-4 text-right text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                  <th className="whitespace-nowrap px-3 pb-4 text-right text-[12px] font-semibold uppercase tracking-wider text-gray-400">
                     Fine
                   </th>
                 </tr>
@@ -297,13 +304,15 @@ export const Dashboard = () => {
                     key={`${row.memberCode}-${row.isbn}-${row.dueDate}`}
                     className="border-t border-gray-50"
                   >
-                    <td className="py-4 font-medium text-charcoal">{row.memberCode}</td>
-                    <td className="max-w-[120px] truncate py-4" title={row.title}>
+                    <td className="whitespace-nowrap px-3 py-4 font-medium text-charcoal">
+                      {row.memberCode}
+                    </td>
+                    <td className="truncate px-3 py-4" title={row.title}>
                       {row.title}
                     </td>
-                    <td className="py-4 text-gray-500">{row.isbn}</td>
-                    <td className="py-4">{formatDate(row.dueDate)}</td>
-                    <td className="py-4 text-right font-medium text-red-500">
+                    <td className="whitespace-nowrap px-3 py-4 text-gray-500">{row.isbn}</td>
+                    <td className="whitespace-nowrap px-3 py-4">{formatDate(row.dueDate)}</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-right font-medium text-red-500">
                       {formatCurrency(row.fineAmount)}
                     </td>
                   </tr>
