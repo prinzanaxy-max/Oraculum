@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Area,
   AreaChart,
@@ -19,6 +20,7 @@ import {
   getOverdueHistory,
   getRecentCheckouts,
   type DashboardStat,
+  type DashboardRange,
   type DashboardStats,
 } from '../api/dashboard';
 
@@ -35,6 +37,13 @@ const statConfig: Array<{
   { key: 'visitors', label: 'Visitors' },
   { key: 'newMembers', label: 'New Members' },
   { key: 'pendingFees', label: 'Pending Fees', format: (value) => `$${value.toLocaleString()}` },
+];
+
+const rangeOptions: Array<{ value: DashboardRange; label: string }> = [
+  { value: 'last_30_days', label: 'Last 30 days' },
+  { value: 'last_3_months', label: 'Last 3 months' },
+  { value: 'last_6_months', label: 'Last 6 months' },
+  { value: 'last_12_months', label: 'Last 12 months' },
 ];
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -92,16 +101,18 @@ const StatSkeleton = () => (
 );
 
 export const Dashboard = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'top' | 'new'>('top');
+  const [range, setRange] = useState<DashboardRange>('last_6_months');
 
   const statsQuery = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: getDashboardStats,
+    queryKey: ['dashboard-stats', range],
+    queryFn: () => getDashboardStats(range),
   });
 
   const checkoutStatsQuery = useQuery({
-    queryKey: ['dashboard-checkout-stats'],
-    queryFn: getCheckoutStats,
+    queryKey: ['dashboard-checkout-stats', range],
+    queryFn: () => getCheckoutStats(range),
   });
 
   const overdueQuery = useQuery({
@@ -141,6 +152,23 @@ export const Dashboard = () => {
           {getErrorMessage(errors[0], 'Unable to load dashboard data.')}
         </div>
       )}
+
+      <div className="flex justify-end">
+        <label className="flex items-center gap-2 rounded-full border border-gray-100 bg-white px-4 py-2 text-[13px] font-medium text-charcoal shadow-sm">
+          <span className="text-gray-400">Range</span>
+          <select
+            value={range}
+            onChange={(event) => setRange(event.target.value as DashboardRange)}
+            className="bg-transparent text-[13px] font-semibold text-charcoal outline-none"
+          >
+            {rangeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         {statsQuery.isLoading
@@ -328,7 +356,11 @@ export const Dashboard = () => {
         <div className="rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] lg:col-span-8 xl:col-span-9">
           <div className="mb-6 flex items-center justify-between">
             <h3 className="text-[16px] font-bold text-charcoal">Recent Check-out's</h3>
-            <button className="text-[13px] font-medium text-amber-gold transition-colors hover:text-amber-gold/80">
+            <button
+              type="button"
+              onClick={() => navigate('/checkout')}
+              className="text-[13px] font-medium text-amber-gold transition-colors hover:text-amber-gold/80"
+            >
               View All
             </button>
           </div>
@@ -434,7 +466,7 @@ export const Dashboard = () => {
             {booksPanelQuery.data?.map((book) => (
               <div
                 key={`${book.title}-${book.author}`}
-                className="group flex cursor-pointer items-start justify-between"
+                className="group flex items-start justify-between"
               >
                 <div>
                   <h4 className="text-[14px] font-bold text-charcoal transition-colors group-hover:text-amber-gold">

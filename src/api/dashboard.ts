@@ -49,16 +49,22 @@ export interface DashboardBook {
   status: string;
 }
 
-export const getDashboardStats = async (): Promise<DashboardStats> => {
+export type DashboardRange = 'last_30_days' | 'last_3_months' | 'last_6_months' | 'last_12_months';
+
+export const getDashboardStats = async (
+  range: DashboardRange = 'last_6_months'
+): Promise<DashboardStats> => {
   const response = await api.get<DashboardStats>('/dashboard/stats', {
-    params: { range: 'last_6_months' },
+    params: { range },
   });
   return response.data;
 };
 
-export const getCheckoutStats = async (): Promise<CheckoutStatsPoint[]> => {
+export const getCheckoutStats = async (
+  range: DashboardRange = 'last_6_months'
+): Promise<CheckoutStatsPoint[]> => {
   const response = await api.get<{ series: CheckoutStatsPoint[] }>('/dashboard/checkout-stats', {
-    params: { range: 'last_6_months' },
+    params: { range },
   });
   return response.data.series;
 };

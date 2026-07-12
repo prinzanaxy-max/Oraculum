@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AxiosError } from 'axios';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -110,6 +110,7 @@ const resolveToken = (response: { token?: string; accessToken?: string }) =>
 
 export const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const setAuth = useAuthStore((state) => state.setAuth);
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [showPassword, setShowPassword] = useState(false);
@@ -118,6 +119,8 @@ export const Login = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+  const redirectTo =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/dashboard';
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -145,7 +148,7 @@ export const Login = () => {
         response.user ?? { id: data.email, name: data.email.split('@')[0], email: data.email },
         response.refreshToken
       );
-      navigate('/dashboard');
+      navigate(redirectTo, { replace: true });
     } catch (error: unknown) {
       setLoginError(getAuthErrorMessage(error, 'An error occurred during login.'));
     }
@@ -156,9 +159,10 @@ export const Login = () => {
       setLoginError(null);
       const response = await register({
         fullName: data.fullName,
-        studentId: data.studentId,
+        studentStaffId: data.studentId,
         email: data.email,
         password: data.password,
+        confirmPassword: data.confirmPassword,
       });
       const token = resolveToken(response);
 
@@ -172,7 +176,7 @@ export const Login = () => {
         response.user ?? { id: data.email, name: data.fullName, email: data.email },
         response.refreshToken
       );
-      navigate('/dashboard');
+      navigate(redirectTo, { replace: true });
     } catch (error: unknown) {
       setLoginError(getAuthErrorMessage(error, 'An error occurred during sign up.'));
     }
@@ -197,14 +201,14 @@ export const Login = () => {
         }
 
         setAuth(token, authResponse.user ?? null, authResponse.refreshToken);
-        navigate('/dashboard');
+        navigate(redirectTo, { replace: true });
       } catch (error) {
         setLoginError(getAuthErrorMessage(error, 'Google sign-in failed.'));
       } finally {
         setIsGoogleLoading(false);
       }
     },
-    [navigate, setAuth]
+    [navigate, redirectTo, setAuth]
   );
 
   useEffect(() => {

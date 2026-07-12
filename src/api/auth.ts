@@ -35,9 +35,10 @@ export interface LoginPayload {
 
 export interface RegisterPayload {
   fullName: string;
-  studentId: string;
+  studentStaffId: string;
   email: string;
   password: string;
+  confirmPassword: string;
 }
 
 export const getCurrentAdmin = async (): Promise<AdminProfile> => {
@@ -62,7 +63,7 @@ export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
 };
 
 export const register = async (payload: RegisterPayload): Promise<AuthResponse> => {
-  const response = await api.post<AuthResponse>('/auth/register', payload);
+  const response = await api.post<AuthResponse>('/auth/signup', payload);
   return response.data;
 };
 
