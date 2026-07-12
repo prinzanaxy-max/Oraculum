@@ -8,24 +8,34 @@ interface AdminUser {
 
 interface AuthState {
   token: string | null;
+  refreshToken: string | null;
   user: AdminUser | null;
-  setAuth: (token: string, user: AdminUser) => void;
+  setAuth: (token: string, user?: AdminUser | null, refreshToken?: string) => void;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: localStorage.getItem('oraculum_token'),
+  refreshToken: localStorage.getItem('oraculum_refresh_token'),
   user: localStorage.getItem('oraculum_user') 
     ? JSON.parse(localStorage.getItem('oraculum_user') as string) 
     : null,
-  setAuth: (token, user) => {
+  setAuth: (token, user = null, refreshToken) => {
     localStorage.setItem('oraculum_token', token);
-    localStorage.setItem('oraculum_user', JSON.stringify(user));
-    set({ token, user });
+    if (refreshToken) {
+      localStorage.setItem('oraculum_refresh_token', refreshToken);
+    }
+    if (user) {
+      localStorage.setItem('oraculum_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('oraculum_user');
+    }
+    set({ token, user, refreshToken: refreshToken ?? null });
   },
   logout: () => {
     localStorage.removeItem('oraculum_token');
+    localStorage.removeItem('oraculum_refresh_token');
     localStorage.removeItem('oraculum_user');
-    set({ token: null, user: null });
+    set({ token: null, refreshToken: null, user: null });
   },
 }));

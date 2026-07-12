@@ -14,6 +14,12 @@ export interface ChangePasswordPayload {
   confirmPassword: string;
 }
 
+export interface GoogleSignInResponse {
+  token?: string;
+  accessToken?: string;
+  refreshToken?: string;
+}
+
 export const getCurrentAdmin = async (): Promise<AdminProfile> => {
   const response = await api.get<AdminProfile>('/auth/me');
   return response.data;
@@ -28,4 +34,9 @@ export const updateCurrentAdmin = async (
 
 export const changePassword = async (payload: ChangePasswordPayload): Promise<void> => {
   await api.put('/auth/change-password', payload);
+};
+
+export const signInWithGoogle = async (idToken: string): Promise<GoogleSignInResponse> => {
+  const response = await api.post<GoogleSignInResponse>('/auth/google', { idToken });
+  return response.data;
 };
