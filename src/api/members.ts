@@ -24,7 +24,7 @@ const normalizeMembers = (payload: Member[] | MembersResponse): Member[] => {
 
 export const getMembers = async (query?: string): Promise<Member[]> => {
   const response = await api.get<Member[] | MembersResponse>('/members', {
-    params: query ? { query } : undefined,
+    params: query ? { query, fields: 'name,email,studentId,memberId,registerId' } : undefined,
   });
 
   return normalizeMembers(response.data);

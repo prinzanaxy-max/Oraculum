@@ -1,18 +1,17 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { 
-  LayoutDashboard, 
-  Users, 
-  BookOpen, 
-  ClipboardCheck, 
-  Settings, 
-  HelpCircle, 
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  ClipboardCheck,
+  Settings,
+  HelpCircle,
   LogOut,
   Search,
-  Calendar,
   ChevronDown,
-  Library
+  Library,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -34,6 +33,7 @@ const checkoutFilterOptions = [
 
 export interface AdminOutletContext {
   checkoutSearchFields: string[];
+  globalSearch: string;
 }
 
 export const AdminLayout = () => {
@@ -42,6 +42,7 @@ export const AdminLayout = () => {
   const location = useLocation();
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [checkoutSearchFields, setCheckoutSearchFields] = useState<string[]>(['title', 'author']);
+  const [globalSearch, setGlobalSearch] = useState('');
   const isCheckoutPage = location.pathname === '/checkout';
 
   const handleLogout = () => {
@@ -51,9 +52,7 @@ export const AdminLayout = () => {
 
   const toggleCheckoutFilter = (value: string) => {
     setCheckoutSearchFields((current) =>
-      current.includes(value)
-        ? current.filter((field) => field !== value)
-        : [...current, value]
+      current.includes(value) ? current.filter((field) => field !== value) : [...current, value]
     );
   };
 
@@ -67,7 +66,7 @@ export const AdminLayout = () => {
           </div>
           <h1 className="text-2xl font-serif font-bold text-charcoal tracking-tight">Oraculum</h1>
         </div>
-        
+
         <nav className="flex-1 py-4 px-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
@@ -107,9 +106,7 @@ export const AdminLayout = () => {
           <div
             className={clsx(
               'relative min-w-0',
-              isCheckoutPage
-                ? 'w-[420px] min-w-[320px] max-w-[48vw] flex-none'
-                : 'flex-1 max-w-xl'
+              isCheckoutPage ? 'w-[420px] min-w-[320px] max-w-[48vw] flex-none' : 'flex-1 max-w-xl'
             )}
           >
             {isCheckoutPage ? (
@@ -175,9 +172,11 @@ export const AdminLayout = () => {
             ) : (
               <>
                 <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 stroke-[1.5]" />
-                <input 
-                  type="text" 
-                  placeholder="Search Ex. ISBN, Title, Author, Member, etc" 
+                <input
+                  type="text"
+                  value={globalSearch}
+                  onChange={(event) => setGlobalSearch(event.target.value)}
+                  placeholder="Search Ex. ISBN, Title, Author, Member, etc"
                   className="w-full pl-11 pr-10 py-2.5 bg-gray-50 border-none rounded-full text-[14px] focus:ring-2 focus:ring-amber-gold/20 focus:bg-white transition-all outline-none text-charcoal placeholder:text-gray-400"
                 />
                 <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2" />
@@ -187,18 +186,11 @@ export const AdminLayout = () => {
 
           {/* Right Actions */}
           <div className="flex shrink-0 items-center gap-6">
-            {/* Date Range */}
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors border border-gray-100">
-              <Calendar className="w-4 h-4 text-gray-500 stroke-[1.5]" />
-              <span className="text-[14px] text-charcoal font-medium">Last 6 months</span>
-              <ChevronDown className="w-4 h-4 text-gray-500" />
-            </button>
-
             {/* Profile Chip */}
             <button className="flex items-center gap-3 pl-2 pr-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-full transition-colors">
-              <img 
-                src="https://i.pravatar.cc/150?u=allison" 
-                alt="Allison" 
+              <img
+                src="https://i.pravatar.cc/150?u=allison"
+                alt="Allison"
                 className="w-8 h-8 rounded-full object-cover"
               />
               <span className="text-[14px] text-charcoal font-medium">Allison</span>
@@ -209,7 +201,7 @@ export const AdminLayout = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-8">
-          <Outlet context={{ checkoutSearchFields } satisfies AdminOutletContext} />
+          <Outlet context={{ checkoutSearchFields, globalSearch } satisfies AdminOutletContext} />
         </main>
       </div>
     </div>

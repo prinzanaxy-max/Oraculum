@@ -4,11 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import clsx from 'clsx';
-import {
-  getBorrowRecords,
-  renewBorrowRecord,
-  returnBorrowRecord,
-} from '../api/borrow';
+import { getBorrowRecords, renewBorrowRecord, returnBorrowRecord } from '../api/borrow';
 import { createReservation } from '../api/reservations';
 import { useDebounce } from '../hooks/useDebounce';
 import type { AdminOutletContext } from '../layouts/AdminLayout';
@@ -50,6 +46,31 @@ const formatDate = (date: string | null) => {
     day: 'numeric',
     year: 'numeric',
   }).format(new Date(date));
+};
+
+const matchesBorrowSearch = (record: BorrowRecord, query: string) => {
+  if (!query) return false;
+  const normalizedQuery = query.toLowerCase();
+  return [record.memberId, record.memberName, record.title, record.author].some((value) =>
+    value.toLowerCase().includes(normalizedQuery)
+  );
+};
+
+const Highlight = ({ value, query }: { value: string; query: string }) => {
+  if (!query) return <>{value}</>;
+
+  const index = value.toLowerCase().indexOf(query.toLowerCase());
+  if (index === -1) return <>{value}</>;
+
+  return (
+    <>
+      {value.slice(0, index)}
+      <mark className="rounded bg-amber-gold/20 px-0.5 text-charcoal">
+        {value.slice(index, index + query.length)}
+      </mark>
+      {value.slice(index + query.length)}
+    </>
+  );
 };
 
 export const Borrow = () => {
@@ -316,9 +337,7 @@ export const Borrow = () => {
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Borrowed Date</th>
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Returned Date</th>
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Status</th>
-                <th className="px-5 py-4 text-right text-[12px] font-bold text-charcoal">
-                  Action
-                </th>
+                <th className="px-5 py-4 text-right text-[12px] font-bold text-charcoal">Action</th>
               </tr>
             </thead>
 
@@ -338,10 +357,14 @@ export const Borrow = () => {
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center">
                     <p className="text-[15px] font-semibold text-charcoal">
-                      No check-out records yet
+                      {debouncedSearch
+                        ? 'No matching check-out records found'
+                        : 'No check-out records yet'}
                     </p>
                     <p className="mt-1 text-[13px] text-gray-500">
-                      Check-out records will appear here.
+                      {debouncedSearch
+                        ? `Try another ISBN, title, author, or member for "${debouncedSearch}"`
+                        : 'Check-out records will appear here.'}
                     </p>
                   </td>
                 </tr>
@@ -350,6 +373,7 @@ export const Borrow = () => {
               {!isLoading &&
                 records.map((record) => {
                   const isSelected = selectedRowId === record.id;
+                  const isSearchMatch = matchesBorrowSearch(record, debouncedSearch);
 
                   return (
                     <tr
@@ -357,15 +381,22 @@ export const Borrow = () => {
                       onClick={() => setSelectedRowId(record.id)}
                       className={clsx(
                         'group cursor-pointer border-b border-gray-50 transition-colors last:border-0 hover:bg-gray-50/80',
-                        isSelected && 'bg-gray-50/80'
+                        isSelected && 'bg-gray-50/80',
+                        isSearchMatch && 'bg-amber-gold/5'
                       )}
                     >
-                      <td className="px-5 py-4 text-[13px] text-gray-600">{record.memberId}</td>
-                      <td className="px-5 py-4 text-[13px] font-medium text-gray-700">
-                        {record.memberName}
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        <Highlight value={record.memberId} query={debouncedSearch} />
                       </td>
-                      <td className="px-5 py-4 text-[13px] text-gray-600">{record.title}</td>
-                      <td className="px-5 py-4 text-[13px] text-gray-600">{record.author}</td>
+                      <td className="px-5 py-4 text-[13px] font-medium text-gray-700">
+                        <Highlight value={record.memberName} query={debouncedSearch} />
+                      </td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        <Highlight value={record.title} query={debouncedSearch} />
+                      </td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        <Highlight value={record.author} query={debouncedSearch} />
+                      </td>
                       <td className="px-5 py-4 text-[13px] text-gray-600">
                         {formatDate(record.borrowedDate)}
                       </td>

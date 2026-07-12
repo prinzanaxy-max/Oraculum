@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, UserPlus, Upload, X } from 'lucide-react';
+import { useOutletContext } from 'react-router-dom';
+import { UserPlus, X } from 'lucide-react';
+import clsx from 'clsx';
 import { createMember, deleteMember, getMembers, updateMember } from '../api/members';
 import type { MemberPayload } from '../api/members';
 import { useDebounce } from '../hooks/useDebounce';
+import type { AdminOutletContext } from '../layouts/AdminLayout';
 import type { Member } from '../types';
 
 const emptyForm: MemberPayload = {
@@ -31,11 +34,41 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 const getMemberDisplayId = (member: Member) => member.memberId || member.studentId || member.id;
 const getRegisterId = (member: Member) => member.registerId || member.studentId || 'N/A';
 
+const matchesMemberSearch = (member: Member, query: string) => {
+  if (!query) return false;
+  const normalizedQuery = query.toLowerCase();
+  return [
+    getMemberDisplayId(member),
+    getRegisterId(member),
+    member.name,
+    member.email,
+    member.studentId,
+    member.phone ?? '',
+    member.department ?? '',
+  ].some((value) => value.toLowerCase().includes(normalizedQuery));
+};
+
+const Highlight = ({ value, query }: { value: string; query: string }) => {
+  if (!query) return <>{value}</>;
+
+  const index = value.toLowerCase().indexOf(query.toLowerCase());
+  if (index === -1) return <>{value}</>;
+
+  return (
+    <>
+      {value.slice(0, index)}
+      <mark className="rounded bg-amber-gold/20 px-0.5 text-charcoal">
+        {value.slice(index, index + query.length)}
+      </mark>
+      {value.slice(index + query.length)}
+    </>
+  );
+};
+
 export const Members = () => {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search.trim(), 300);
+  const { globalSearch } = useOutletContext<AdminOutletContext>();
+  const debouncedSearch = useDebounce(globalSearch.trim(), 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [form, setForm] = useState<MemberPayload>(emptyForm);
@@ -118,20 +151,13 @@ export const Members = () => {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
-    saveMutation.mutate(form);
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleImportChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    console.log('CSV import selected:', file.name);
-    setToastError(`CSV import selected: ${file.name}. Bulk import is not wired yet.`);
-    event.target.value = '';
+    saveMutation.mutate({
+      name: form.name.trim(),
+      studentId: form.studentId.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      department: form.department.trim(),
+    });
   };
 
   const listErrorMessage = listError
@@ -155,17 +181,6 @@ export const Members = () => {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-[300px]">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              type="search"
-              placeholder="Search Member"
-              className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-4 pr-11 text-[14px] text-charcoal outline-none transition-all placeholder:text-gray-400 focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
-            />
-            <Search className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          </div>
-
           <button
             type="button"
             onClick={openAddModal}
@@ -175,21 +190,6 @@ export const Members = () => {
             Add Members
           </button>
 
-          <button
-            type="button"
-            onClick={handleImportClick}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-[14px] font-semibold text-gray-500 transition-colors hover:border-amber-gold/40 hover:text-charcoal"
-          >
-            <Upload className="h-4 w-4" />
-            Import
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={handleImportChange}
-          />
         </div>
       </div>
 
@@ -208,9 +208,7 @@ export const Members = () => {
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Register ID</th>
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Member</th>
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Email ID</th>
-                <th className="px-5 py-4 text-right text-[12px] font-bold text-charcoal">
-                  Action
-                </th>
+                <th className="px-5 py-4 text-right text-[12px] font-bold text-charcoal">Action</th>
               </tr>
             </thead>
 
@@ -229,48 +227,65 @@ export const Members = () => {
               {!isLoading && members.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-5 py-16 text-center">
-                    <p className="text-[15px] font-semibold text-charcoal">No members yet</p>
-                    <p className="mt-1 text-[13px] text-gray-500">add your first member</p>
+                    <p className="text-[15px] font-semibold text-charcoal">
+                      {debouncedSearch ? 'No matching members found' : 'No members yet'}
+                    </p>
+                    <p className="mt-1 text-[13px] text-gray-500">
+                      {debouncedSearch
+                        ? `Try another name, email, or member ID for "${debouncedSearch}"`
+                        : 'add your first member'}
+                    </p>
                   </td>
                 </tr>
               )}
 
               {!isLoading &&
-                members.map((member) => (
-                  <tr
-                    key={member.id}
-                    className="group border-b border-gray-50 transition-colors last:border-0 hover:bg-gray-50/80"
-                  >
-                    <td className="px-5 py-4 text-[13px] text-gray-600">
-                      {getMemberDisplayId(member)}
-                    </td>
-                    <td className="px-5 py-4 text-[13px] text-gray-600">
-                      {getRegisterId(member)}
-                    </td>
-                    <td className="px-5 py-4 text-[13px] font-medium text-gray-700">
-                      {member.name}
-                    </td>
-                    <td className="px-5 py-4 text-[13px] text-gray-600">{member.email}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(member)}
-                          className="rounded-md bg-gray-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-gray-600"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(member)}
-                          className="rounded-md bg-red-400 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-500"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                members.map((member) => {
+                  const memberId = getMemberDisplayId(member);
+                  const registerId = getRegisterId(member);
+                  const isSearchMatch = matchesMemberSearch(member, debouncedSearch);
+
+                  return (
+                    <tr
+                      key={member.id}
+                      className={clsx(
+                        'group border-b border-gray-50 transition-colors last:border-0 hover:bg-gray-50/80',
+                        isSearchMatch && 'bg-amber-gold/5'
+                      )}
+                    >
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        <Highlight value={memberId} query={debouncedSearch} />
+                      </td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        <Highlight value={registerId} query={debouncedSearch} />
+                      </td>
+                      <td className="px-5 py-4 text-[13px] font-medium text-gray-700">
+                        <Highlight value={member.name} query={debouncedSearch} />
+                      </td>
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        <Highlight value={member.email} query={debouncedSearch} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(member)}
+                            className="rounded-md bg-gray-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-gray-600"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(member)}
+                            className="rounded-md bg-red-400 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-500"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -283,8 +298,8 @@ export const Members = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/40 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-charcoal/40 px-4 py-8 backdrop-blur-sm">
+          <div className="w-[min(100%,34rem)] rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <h2 className="text-[20px] font-bold text-charcoal">
@@ -318,6 +333,8 @@ export const Members = () => {
                 </label>
                 <input
                   required
+                  name="name"
+                  autoComplete="name"
                   value={form.name}
                   onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
@@ -332,6 +349,8 @@ export const Members = () => {
                   </label>
                   <input
                     required
+                    name="studentId"
+                    autoComplete="off"
                     value={form.studentId}
                     onChange={(event) =>
                       setForm((prev) => ({ ...prev, studentId: event.target.value }))
@@ -346,6 +365,8 @@ export const Members = () => {
                     Phone
                   </label>
                   <input
+                    name="phone"
+                    autoComplete="tel"
                     value={form.phone}
                     onChange={(event) =>
                       setForm((prev) => ({ ...prev, phone: event.target.value }))
@@ -363,6 +384,8 @@ export const Members = () => {
                 <input
                   required
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   value={form.email}
                   onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
@@ -376,6 +399,8 @@ export const Members = () => {
                 </label>
                 <input
                   required
+                  name="department"
+                  autoComplete="organization"
                   value={form.department}
                   onChange={(event) =>
                     setForm((prev) => ({ ...prev, department: event.target.value }))
@@ -398,7 +423,11 @@ export const Members = () => {
                   disabled={saveMutation.isPending}
                   className="inline-flex min-w-28 items-center justify-center rounded-full bg-amber-gold px-5 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-amber-gold/90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {saveMutation.isPending ? 'Saving...' : editingMember ? 'Save Changes' : 'Add Member'}
+                  {saveMutation.isPending
+                    ? 'Saving...'
+                    : editingMember
+                      ? 'Save Changes'
+                      : 'Add Member'}
                 </button>
               </div>
             </form>

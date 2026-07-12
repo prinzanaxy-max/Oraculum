@@ -4,6 +4,11 @@ export interface Book {
   author: string;
   isbn: string;
   publishedYear: number;
+  category?: string;
+  copies?: number;
+  availableCopies?: number;
+  shelfLocation?: string;
+  description?: string;
   status: 'available' | 'borrowed' | 'reserved' | 'maintenance';
 }
 
