@@ -189,7 +189,6 @@ export const Members = () => {
             <UserPlus className="h-4 w-4" />
             Add Members
           </button>
-
         </div>
       </div>
 
@@ -279,7 +278,7 @@ export const Members = () => {
                             onClick={() => setDeleteTarget(member)}
                             className="rounded-md bg-red-400 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-500"
                           >
-                            Cancel
+                            Delete
                           </button>
                         </div>
                       </td>

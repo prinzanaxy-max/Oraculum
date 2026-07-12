@@ -17,8 +17,8 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   token: localStorage.getItem('oraculum_token'),
   refreshToken: localStorage.getItem('oraculum_refresh_token'),
-  user: localStorage.getItem('oraculum_user') 
-    ? JSON.parse(localStorage.getItem('oraculum_user') as string) 
+  user: localStorage.getItem('oraculum_user')
+    ? JSON.parse(localStorage.getItem('oraculum_user') as string)
     : null,
   setAuth: (token, user = null, refreshToken) => {
     localStorage.setItem('oraculum_token', token);

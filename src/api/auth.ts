@@ -18,6 +18,26 @@ export interface GoogleSignInResponse {
   token?: string;
   accessToken?: string;
   refreshToken?: string;
+  user?: AdminProfile;
+}
+
+export interface AuthResponse {
+  token?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: AdminProfile;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface RegisterPayload {
+  fullName: string;
+  studentId: string;
+  email: string;
+  password: string;
 }
 
 export const getCurrentAdmin = async (): Promise<AdminProfile> => {
@@ -34,6 +54,20 @@ export const updateCurrentAdmin = async (
 
 export const changePassword = async (payload: ChangePasswordPayload): Promise<void> => {
   await api.put('/auth/change-password', payload);
+};
+
+export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>('/auth/login', payload);
+  return response.data;
+};
+
+export const register = async (payload: RegisterPayload): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>('/auth/register', payload);
+  return response.data;
+};
+
+export const requestPasswordReset = async (email: string): Promise<void> => {
+  await api.post('/auth/forgot-password', { email });
 };
 
 export const signInWithGoogle = async (idToken: string): Promise<GoogleSignInResponse> => {

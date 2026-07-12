@@ -57,10 +57,11 @@ const formatDate = (date: string) =>
     year: 'numeric',
   }).format(new Date(date));
 
-const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, {
-  maximumFractionDigits: 2,
-  minimumFractionDigits: value % 1 === 0 ? 0 : 2,
-})}`;
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+  })}`;
 
 const getChangeStyles = (direction: DashboardStat['direction']) => {
   if (direction === 'up') {
@@ -335,13 +336,27 @@ export const Dashboard = () => {
             <table className="w-full whitespace-nowrap border-collapse text-left">
               <thead>
                 <tr>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">ID</th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">ISBN</th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">Title</th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">Author</th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">Member</th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">Issued Date</th>
-                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">Return Date</th>
+                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                    ID
+                  </th>
+                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                    ISBN
+                  </th>
+                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                    Title
+                  </th>
+                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                    Author
+                  </th>
+                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                    Member
+                  </th>
+                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                    Issued Date
+                  </th>
+                  <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">
+                    Return Date
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-[13px] text-gray-600">
@@ -352,13 +367,14 @@ export const Dashboard = () => {
                     </td>
                   </tr>
                 )}
-                {!recentCheckoutsQuery.isLoading && (recentCheckoutsQuery.data?.length ?? 0) === 0 && (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-[13px] text-gray-500">
-                      No recent check-outs.
-                    </td>
-                  </tr>
-                )}
+                {!recentCheckoutsQuery.isLoading &&
+                  (recentCheckoutsQuery.data?.length ?? 0) === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-[13px] text-gray-500">
+                        No recent check-outs.
+                      </td>
+                    </tr>
+                  )}
                 {recentCheckoutsQuery.data?.map((row) => (
                   <tr
                     key={row.id}
@@ -384,7 +400,9 @@ export const Dashboard = () => {
               onClick={() => setActiveTab('top')}
               className={clsx(
                 'flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-all',
-                activeTab === 'top' ? 'bg-white text-charcoal shadow-sm' : 'text-gray-500 hover:text-charcoal'
+                activeTab === 'top'
+                  ? 'bg-white text-charcoal shadow-sm'
+                  : 'text-gray-500 hover:text-charcoal'
               )}
             >
               Top Books
@@ -393,7 +411,9 @@ export const Dashboard = () => {
               onClick={() => setActiveTab('new')}
               className={clsx(
                 'flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-all',
-                activeTab === 'new' ? 'bg-white text-charcoal shadow-sm' : 'text-gray-500 hover:text-charcoal'
+                activeTab === 'new'
+                  ? 'bg-white text-charcoal shadow-sm'
+                  : 'text-gray-500 hover:text-charcoal'
               )}
             >
               New arrivals
@@ -412,7 +432,10 @@ export const Dashboard = () => {
               <p className="text-[13px] text-gray-500">No books available.</p>
             )}
             {booksPanelQuery.data?.map((book) => (
-              <div key={`${book.title}-${book.author}`} className="group flex cursor-pointer items-start justify-between">
+              <div
+                key={`${book.title}-${book.author}`}
+                className="group flex cursor-pointer items-start justify-between"
+              >
                 <div>
                   <h4 className="text-[14px] font-bold text-charcoal transition-colors group-hover:text-amber-gold">
                     {book.title}

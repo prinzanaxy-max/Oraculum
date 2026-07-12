@@ -44,6 +44,19 @@ export interface Reservation {
   id: string;
   bookId: string;
   memberId: string;
+  bookTitle?: string;
+  memberName?: string;
+  memberCode?: string;
   reservationDate: string;
   status: 'pending' | 'fulfilled' | 'cancelled';
+}
+
+export interface Fine {
+  id: string;
+  memberId: string;
+  memberName: string;
+  bookTitle: string;
+  amount: number;
+  dueDate: string;
+  status: 'pending' | 'paid' | 'waived';
 }

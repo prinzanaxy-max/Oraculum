@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '../store/authStore';
-import { signInWithGoogle } from '../api/auth';
+import { login, register, signInWithGoogle } from '../api/auth';
 import clsx from 'clsx';
 
 // Schemas
@@ -14,19 +14,21 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-const signUpSchema = z.object({
-  fullName: z.string().min(2, 'Full name is required'),
-  studentId: z.string().min(2, 'Student/Staff ID is required'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-  terms: z.boolean().refine((val) => val === true, {
-    message: 'You must agree to the terms',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const signUpSchema = z
+  .object({
+    fullName: z.string().min(2, 'Full name is required'),
+    studentId: z.string().min(2, 'Student/Staff ID is required'),
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+    terms: z.boolean().refine((val) => val === true, {
+      message: 'You must agree to the terms',
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
 type LoginForm = z.infer<typeof loginSchema>;
 type SignUpForm = z.infer<typeof signUpSchema>;
@@ -103,6 +105,9 @@ const getAuthErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const resolveToken = (response: { token?: string; accessToken?: string }) =>
+  response.accessToken ?? response.token;
+
 export const Login = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -127,49 +132,49 @@ export const Login = () => {
   const onLoginSubmit = async (data: LoginForm) => {
     try {
       setLoginError(null);
-      // In a real app, this would be:
-      // const response = await api.post('/auth/login', data);
-      // setAuth(response.data.token, response.data.user);
-      
-      // Mocking the API call for now
-      await new Promise<{ token: string, user: { id: string, name: string, email: string } }>((resolve, reject) => {
-        setTimeout(() => {
-          if (data.email === 'admin@oraculum.edu' && data.password === 'password') {
-            resolve({ token: 'mock-jwt-token', user: { id: '1', name: 'Super Admin', email: data.email } });
-          } else {
-            reject(new Error('Invalid credentials'));
-          }
-        }, 1500);
-      }).then((res) => {
-        setAuth(res.token, res.user);
-        navigate('/dashboard');
-      }).catch((err: Error) => {
-        setLoginError(err.message);
-      });
-      
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        setLoginError(error.message);
-      } else {
-        setLoginError('An error occurred during login');
+      const response = await login(data);
+      const token = resolveToken(response);
+
+      if (!token) {
+        setLoginError('Sign-in response did not include a token.');
+        return;
       }
+
+      setAuth(
+        token,
+        response.user ?? { id: data.email, name: data.email.split('@')[0], email: data.email },
+        response.refreshToken
+      );
+      navigate('/dashboard');
+    } catch (error: unknown) {
+      setLoginError(getAuthErrorMessage(error, 'An error occurred during login.'));
     }
   };
 
   const onSignUpSubmit = async (data: SignUpForm) => {
     try {
       setLoginError(null);
-      // Mocking the API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      // In a real app, we would register then login or redirect to verify email
-      setAuth('mock-jwt-token', { id: '2', name: data.fullName, email: data.email });
+      const response = await register({
+        fullName: data.fullName,
+        studentId: data.studentId,
+        email: data.email,
+        password: data.password,
+      });
+      const token = resolveToken(response);
+
+      if (!token) {
+        setLoginError('Sign-up response did not include a token.');
+        return;
+      }
+
+      setAuth(
+        token,
+        response.user ?? { id: data.email, name: data.fullName, email: data.email },
+        response.refreshToken
+      );
       navigate('/dashboard');
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        setLoginError(error.message);
-      } else {
-        setLoginError('An error occurred during sign up');
-      }
+      setLoginError(getAuthErrorMessage(error, 'An error occurred during sign up.'));
     }
   };
 
@@ -184,14 +189,14 @@ export const Login = () => {
         setIsGoogleLoading(true);
         setLoginError(null);
         const authResponse = await signInWithGoogle(response.credential);
-        const token = authResponse.accessToken ?? authResponse.token;
+        const token = resolveToken(authResponse);
 
         if (!token) {
           setLoginError('Google sign-in response did not include token or accessToken.');
           return;
         }
 
-        setAuth(token, null, authResponse.refreshToken);
+        setAuth(token, authResponse.user ?? null, authResponse.refreshToken);
         navigate('/dashboard');
       } catch (error) {
         setLoginError(getAuthErrorMessage(error, 'Google sign-in failed.'));
@@ -249,13 +254,13 @@ export const Login = () => {
       <section className="w-full lg:w-[45%] lg:fixed lg:h-screen bg-primary-container relative overflow-hidden flex flex-col justify-between p-8 lg:p-12 z-10">
         {/* Decorative Background Overlay */}
         <div className="absolute inset-0 opacity-50 mix-blend-soft-light pointer-events-none">
-          <img 
-            alt="Oraculum Branding" 
-            className="w-full h-full object-cover grayscale opacity-60" 
+          <img
+            alt="Oraculum Branding"
+            className="w-full h-full object-cover grayscale opacity-60"
             src="https://lh3.googleusercontent.com/aida/AP1WRLv44hZ34qRskwEZi-QghrjxwO8Sm81wwMO471CR8rF0lSCXaLbofEdNsF7V5kG8VRO_JKDakVtPEokTeUmeG7RqN2b1MyIlhym3xDe8wI9cI2bqUWZxYkv8QHpnWugtstCRhDjXlCTJqsVNAxLtdf9bvYd_Uide2VbCYZN3fKG7RKv69hkhlcpF1C3Cu052qw0moKa6HybNOq_HBAAfSJ_IiTqUFaMtdL-9Cyif3N0f31MeK-CwWaTqxQ"
           />
         </div>
-        
+
         {/* Branding Header */}
         <div className="relative z-10">
           <h1 className="font-display-lg text-[40px] sm:text-display-lg text-secondary-fixed italic tracking-[-0.02em] leading-tight">
@@ -263,11 +268,11 @@ export const Login = () => {
           </h1>
           <div className="w-12 h-px bg-secondary-fixed/40 mt-4"></div>
         </div>
-        
+
         {/* Branding Footer */}
         <div className="relative z-10 hidden lg:block">
           <p className="font-label-sm text-label-sm text-primary-fixed-dim/60 tracking-widest uppercase">
-            © 2024 ORACULUM SCRIPTORIUM
+            © {new Date().getFullYear()} ORACULUM SCRIPTORIUM
           </p>
         </div>
       </section>
@@ -277,11 +282,16 @@ export const Login = () => {
         <div className="w-full max-w-[420px]">
           {/* Toggle Tabs */}
           <div className="flex items-center space-x-8 mb-8 border-b border-outline-variant/30">
-            <button 
-              onClick={() => { setActiveTab('signin'); setLoginError(null); }}
+            <button
+              onClick={() => {
+                setActiveTab('signin');
+                setLoginError(null);
+              }}
               className={clsx(
-                "pb-4 font-label-md text-label-md transition-all relative",
-                activeTab === 'signin' ? "text-primary" : "text-on-surface-variant hover:text-primary"
+                'pb-4 font-label-md text-label-md transition-all relative',
+                activeTab === 'signin'
+                  ? 'text-primary'
+                  : 'text-on-surface-variant hover:text-primary'
               )}
             >
               Sign In
@@ -289,11 +299,16 @@ export const Login = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-secondary"></div>
               )}
             </button>
-            <button 
-              onClick={() => { setActiveTab('signup'); setLoginError(null); }}
+            <button
+              onClick={() => {
+                setActiveTab('signup');
+                setLoginError(null);
+              }}
               className={clsx(
-                "pb-4 font-label-md text-label-md transition-all relative",
-                activeTab === 'signup' ? "text-primary" : "text-on-surface-variant hover:text-primary"
+                'pb-4 font-label-md text-label-md transition-all relative',
+                activeTab === 'signup'
+                  ? 'text-primary'
+                  : 'text-on-surface-variant hover:text-primary'
               )}
             >
               Sign Up
@@ -309,8 +324,8 @@ export const Login = () => {
               {activeTab === 'signin' ? 'Welcome back' : 'Join the Scriptorium'}
             </h2>
             <p className="font-body-md text-body-md text-on-surface-variant">
-              {activeTab === 'signin' 
-                ? 'Please enter your credentials to access the scriptorium.' 
+              {activeTab === 'signin'
+                ? 'Please enter your credentials to access the scriptorium.'
                 : 'Create an account to borrow books and manage your reading list.'}
             </p>
           </div>
@@ -327,47 +342,62 @@ export const Login = () => {
           {activeTab === 'signin' && (
             <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant ml-1" htmlFor="signin-email">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant ml-1"
+                  htmlFor="signin-email"
+                >
                   Email Address
                 </label>
-                <input 
+                <input
                   {...loginForm.register('email')}
                   className={clsx(
-                    "w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none",
-                    loginForm.formState.errors.email ? "border-error focus:ring-1 focus:ring-error" : "border-outline/20 form-input-focus"
+                    'w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none',
+                    loginForm.formState.errors.email
+                      ? 'border-error focus:ring-1 focus:ring-error'
+                      : 'border-outline/20 form-input-focus'
                   )}
-                  id="signin-email" 
-                  placeholder="scholar@oraculum.edu" 
+                  id="signin-email"
+                  placeholder="scholar@oraculum.edu"
                   type="email"
                 />
                 {loginForm.formState.errors.email && (
-                  <p className="mt-1 text-xs text-error ml-1">{loginForm.formState.errors.email.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {loginForm.formState.errors.email.message}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
-                  <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="signin-password">
+                  <label
+                    className="font-label-md text-label-md text-on-surface-variant"
+                    htmlFor="signin-password"
+                  >
                     Password
                   </label>
-                  <Link to="/forgot-password" className="font-label-sm text-label-sm text-secondary hover:underline transition-all">
+                  <Link
+                    to="/forgot-password"
+                    className="font-label-sm text-label-sm text-secondary hover:underline transition-all"
+                  >
                     Forgot password?
                   </Link>
                 </div>
                 <div className="relative">
-                  <input 
+                  <input
                     {...loginForm.register('password')}
                     className={clsx(
-                      "w-full px-4 py-3 pr-12 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none",
-                      loginForm.formState.errors.password ? "border-error focus:ring-1 focus:ring-error" : "border-outline/20 form-input-focus"
+                      'w-full px-4 py-3 pr-12 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none',
+                      loginForm.formState.errors.password
+                        ? 'border-error focus:ring-1 focus:ring-error'
+                        : 'border-outline/20 form-input-focus'
                     )}
-                    id="signin-password" 
-                    placeholder="••••••••" 
-                    type={showPassword ? "text" : "password"}
+                    id="signin-password"
+                    placeholder="••••••••"
+                    type={showPassword ? 'text' : 'password'}
                   />
-                  <button 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center h-full" 
-                    onClick={() => setShowPassword(!showPassword)} 
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center h-full"
+                    onClick={() => setShowPassword(!showPassword)}
                     type="button"
                     tabIndex={-1}
                   >
@@ -377,17 +407,21 @@ export const Login = () => {
                   </button>
                 </div>
                 {loginForm.formState.errors.password && (
-                  <p className="mt-1 text-xs text-error ml-1">{loginForm.formState.errors.password.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {loginForm.formState.errors.password.message}
+                  </p>
                 )}
               </div>
 
-              <button 
-                className="w-full bg-secondary text-white py-3 px-4 rounded-lg font-label-md text-label-md inner-shine hover:bg-on-secondary-fixed-variant active:scale-[0.98] transition-all duration-200 custom-shadow flex items-center justify-center disabled:opacity-80 disabled:cursor-not-allowed mt-2" 
+              <button
+                className="w-full bg-secondary text-white py-3 px-4 rounded-lg font-label-md text-label-md inner-shine hover:bg-on-secondary-fixed-variant active:scale-[0.98] transition-all duration-200 custom-shadow flex items-center justify-center disabled:opacity-80 disabled:cursor-not-allowed mt-2"
                 type="submit"
                 disabled={loginForm.formState.isSubmitting}
               >
                 {loginForm.formState.isSubmitting ? (
-                  <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                  <span className="material-symbols-outlined animate-spin text-[20px]">
+                    progress_activity
+                  </span>
                 ) : (
                   'Sign In'
                 )}
@@ -399,80 +433,106 @@ export const Login = () => {
           {activeTab === 'signup' && (
             <form onSubmit={signUpForm.handleSubmit(onSignUpSubmit)} className="space-y-6">
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant ml-1" htmlFor="signup-fullname">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant ml-1"
+                  htmlFor="signup-fullname"
+                >
                   Full Name
                 </label>
-                <input 
+                <input
                   {...signUpForm.register('fullName')}
                   className={clsx(
-                    "w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none",
-                    signUpForm.formState.errors.fullName ? "border-error focus:ring-1 focus:ring-error" : "border-outline/20 form-input-focus"
+                    'w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none',
+                    signUpForm.formState.errors.fullName
+                      ? 'border-error focus:ring-1 focus:ring-error'
+                      : 'border-outline/20 form-input-focus'
                   )}
-                  id="signup-fullname" 
-                  placeholder="John Doe" 
+                  id="signup-fullname"
+                  placeholder="John Doe"
                   type="text"
                 />
                 {signUpForm.formState.errors.fullName && (
-                  <p className="mt-1 text-xs text-error ml-1">{signUpForm.formState.errors.fullName.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {signUpForm.formState.errors.fullName.message}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant ml-1" htmlFor="signup-studentid">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant ml-1"
+                  htmlFor="signup-studentid"
+                >
                   Student/Staff ID
                 </label>
-                <input 
+                <input
                   {...signUpForm.register('studentId')}
                   className={clsx(
-                    "w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none",
-                    signUpForm.formState.errors.studentId ? "border-error focus:ring-1 focus:ring-error" : "border-outline/20 form-input-focus"
+                    'w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none',
+                    signUpForm.formState.errors.studentId
+                      ? 'border-error focus:ring-1 focus:ring-error'
+                      : 'border-outline/20 form-input-focus'
                   )}
-                  id="signup-studentid" 
-                  placeholder="e.g. 12345678" 
+                  id="signup-studentid"
+                  placeholder="e.g. 12345678"
                   type="text"
                 />
                 {signUpForm.formState.errors.studentId && (
-                  <p className="mt-1 text-xs text-error ml-1">{signUpForm.formState.errors.studentId.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {signUpForm.formState.errors.studentId.message}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant ml-1" htmlFor="signup-email">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant ml-1"
+                  htmlFor="signup-email"
+                >
                   Email Address
                 </label>
-                <input 
+                <input
                   {...signUpForm.register('email')}
                   className={clsx(
-                    "w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none",
-                    signUpForm.formState.errors.email ? "border-error focus:ring-1 focus:ring-error" : "border-outline/20 form-input-focus"
+                    'w-full px-4 py-3 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none',
+                    signUpForm.formState.errors.email
+                      ? 'border-error focus:ring-1 focus:ring-error'
+                      : 'border-outline/20 form-input-focus'
                   )}
-                  id="signup-email" 
-                  placeholder="scholar@oraculum.edu" 
+                  id="signup-email"
+                  placeholder="scholar@oraculum.edu"
                   type="email"
                 />
                 {signUpForm.formState.errors.email && (
-                  <p className="mt-1 text-xs text-error ml-1">{signUpForm.formState.errors.email.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {signUpForm.formState.errors.email.message}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant ml-1" htmlFor="signup-password">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant ml-1"
+                  htmlFor="signup-password"
+                >
                   Password
                 </label>
                 <div className="relative">
-                  <input 
+                  <input
                     {...signUpForm.register('password')}
                     className={clsx(
-                      "w-full px-4 py-3 pr-12 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none",
-                      signUpForm.formState.errors.password ? "border-error focus:ring-1 focus:ring-error" : "border-outline/20 form-input-focus"
+                      'w-full px-4 py-3 pr-12 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none',
+                      signUpForm.formState.errors.password
+                        ? 'border-error focus:ring-1 focus:ring-error'
+                        : 'border-outline/20 form-input-focus'
                     )}
-                    id="signup-password" 
-                    placeholder="Min. 8 characters" 
-                    type={showPassword ? "text" : "password"}
+                    id="signup-password"
+                    placeholder="Min. 8 characters"
+                    type={showPassword ? 'text' : 'password'}
                   />
-                  <button 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center h-full" 
-                    onClick={() => setShowPassword(!showPassword)} 
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center h-full"
+                    onClick={() => setShowPassword(!showPassword)}
                     type="button"
                     tabIndex={-1}
                   >
@@ -482,28 +542,35 @@ export const Login = () => {
                   </button>
                 </div>
                 {signUpForm.formState.errors.password && (
-                  <p className="mt-1 text-xs text-error ml-1">{signUpForm.formState.errors.password.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {signUpForm.formState.errors.password.message}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant ml-1" htmlFor="signup-confirm-password">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant ml-1"
+                  htmlFor="signup-confirm-password"
+                >
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <input 
+                  <input
                     {...signUpForm.register('confirmPassword')}
                     className={clsx(
-                      "w-full px-4 py-3 pr-12 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none",
-                      signUpForm.formState.errors.confirmPassword ? "border-error focus:ring-1 focus:ring-error" : "border-outline/20 form-input-focus"
+                      'w-full px-4 py-3 pr-12 bg-surface-container-lowest border rounded-lg font-body-md text-body-md transition-all outline-none',
+                      signUpForm.formState.errors.confirmPassword
+                        ? 'border-error focus:ring-1 focus:ring-error'
+                        : 'border-outline/20 form-input-focus'
                     )}
-                    id="signup-confirm-password" 
-                    placeholder="Repeat password" 
-                    type={showConfirmPassword ? "text" : "password"}
+                    id="signup-confirm-password"
+                    placeholder="Repeat password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                   />
-                  <button 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center h-full" 
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center h-full"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     type="button"
                     tabIndex={-1}
                   >
@@ -513,35 +580,42 @@ export const Login = () => {
                   </button>
                 </div>
                 {signUpForm.formState.errors.confirmPassword && (
-                  <p className="mt-1 text-xs text-error ml-1">{signUpForm.formState.errors.confirmPassword.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {signUpForm.formState.errors.confirmPassword.message}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2 pt-2">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <div className="flex items-center h-5">
-                    <input 
+                    <input
                       {...signUpForm.register('terms')}
-                      type="checkbox" 
+                      type="checkbox"
                       className="w-4 h-4 rounded border-outline/30 text-secondary focus:ring-secondary/30"
                     />
                   </div>
                   <span className="font-body-md text-sm text-on-surface-variant leading-tight">
-                    I agree to the <a href="#" className="text-secondary hover:underline">Terms of Service</a> and <a href="#" className="text-secondary hover:underline">Privacy Policy</a>
+                    I agree to the <span className="text-secondary">Terms of Service</span> and{' '}
+                    <span className="text-secondary">Privacy Policy</span>
                   </span>
                 </label>
                 {signUpForm.formState.errors.terms && (
-                  <p className="mt-1 text-xs text-error ml-1">{signUpForm.formState.errors.terms.message}</p>
+                  <p className="mt-1 text-xs text-error ml-1">
+                    {signUpForm.formState.errors.terms.message}
+                  </p>
                 )}
               </div>
 
-              <button 
-                className="w-full bg-secondary text-white py-3 px-4 rounded-lg font-label-md text-label-md inner-shine hover:bg-on-secondary-fixed-variant active:scale-[0.98] transition-all duration-200 custom-shadow flex items-center justify-center disabled:opacity-80 disabled:cursor-not-allowed mt-4" 
+              <button
+                className="w-full bg-secondary text-white py-3 px-4 rounded-lg font-label-md text-label-md inner-shine hover:bg-on-secondary-fixed-variant active:scale-[0.98] transition-all duration-200 custom-shadow flex items-center justify-center disabled:opacity-80 disabled:cursor-not-allowed mt-4"
                 type="submit"
                 disabled={signUpForm.formState.isSubmitting}
               >
                 {signUpForm.formState.isSubmitting ? (
-                  <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                  <span className="material-symbols-outlined animate-spin text-[20px]">
+                    progress_activity
+                  </span>
                 ) : (
                   'Create Account'
                 )}
@@ -589,9 +663,12 @@ export const Login = () => {
 
           {/* Footer Link */}
           <p className="mt-8 text-center font-body-md text-body-md text-on-surface-variant">
-            {activeTab === 'signin' ? "Don't have an account? " : "Already have an account? "}
-            <button 
-              onClick={() => { setActiveTab(activeTab === 'signin' ? 'signup' : 'signin'); setLoginError(null); }}
+            {activeTab === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+            <button
+              onClick={() => {
+                setActiveTab(activeTab === 'signin' ? 'signup' : 'signin');
+                setLoginError(null);
+              }}
               className="text-secondary font-semibold hover:underline transition-all"
             >
               {activeTab === 'signin' ? 'Sign Up' : 'Sign In'}
@@ -602,7 +679,7 @@ export const Login = () => {
         {/* Mobile Brand Footer */}
         <div className="mt-12 lg:hidden flex flex-col items-center">
           <p className="font-label-sm text-label-sm text-on-surface-variant/40 tracking-widest uppercase">
-            © 2024 ORACULUM SCRIPTORIUM
+            © {new Date().getFullYear()} ORACULUM SCRIPTORIUM
           </p>
         </div>
       </section>

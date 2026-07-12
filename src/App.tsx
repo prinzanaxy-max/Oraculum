@@ -8,6 +8,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Books } from './pages/Books';
 import { Members } from './pages/Members';
 import { Borrow } from './pages/Borrow';
+import { Reservations } from './pages/Reservations';
+import { Fines } from './pages/Fines';
 import { Settings } from './pages/Settings';
 import { Help } from './pages/Help';
 
@@ -20,7 +22,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          
+
           <Route
             path="/"
             element={
@@ -34,8 +36,11 @@ function App() {
             <Route path="members" element={<Members />} />
             <Route path="books/add" element={<Books />} />
             <Route path="checkout" element={<Borrow />} />
+            <Route path="reservations" element={<Reservations />} />
+            <Route path="fines" element={<Fines />} />
             <Route path="settings" element={<Settings />} />
             <Route path="help" element={<Help />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

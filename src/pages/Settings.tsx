@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Camera, Monitor, Smartphone } from 'lucide-react';
 import clsx from 'clsx';
+import { useAuthStore } from '../store/authStore';
 import {
   changePassword,
   getCurrentAdmin,
@@ -72,6 +72,9 @@ const Toggle = ({
 );
 
 export const Settings = () => {
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const token = useAuthStore((state) => state.token);
+  const refreshToken = useAuthStore((state) => state.refreshToken);
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [profile, setProfile] = useState<Partial<AdminProfile>>({});
   const [preferences, setPreferences] = useState<Partial<LibraryPreferences>>({});
@@ -106,6 +109,9 @@ export const Settings = () => {
     mutationFn: updateCurrentAdmin,
     onSuccess: (updatedProfile) => {
       setProfile(updatedProfile);
+      if (token) {
+        setAuth(token, updatedProfile, refreshToken ?? undefined);
+      }
       setErrorMessage(null);
       setSuccessMessage('Profile saved successfully.');
     },
@@ -193,12 +199,6 @@ export const Settings = () => {
                   alt={currentProfile.name}
                   className="h-20 w-20 rounded-full object-cover"
                 />
-                <button
-                  type="button"
-                  className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-amber-gold text-white shadow-sm"
-                >
-                  <Camera className="h-4 w-4" />
-                </button>
               </div>
               <div>
                 <h2 className="text-[18px] font-bold text-charcoal">Profile</h2>
@@ -332,7 +332,9 @@ export const Settings = () => {
               <div className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3">
                 <div>
                   <p className="text-[14px] font-semibold text-charcoal">Auto-notify on overdue</p>
-                  <p className="mt-1 text-[12px] text-gray-500">Send reminders when loans expire.</p>
+                  <p className="mt-1 text-[12px] text-gray-500">
+                    Send reminders when loans expire.
+                  </p>
                 </div>
                 <Toggle
                   checked={currentPreferences.autoNotifyOverdue}
@@ -400,34 +402,11 @@ export const Settings = () => {
               </div>
             </form>
 
-            <div>
-              <h3 className="text-[15px] font-bold text-charcoal">Active Sessions</h3>
-              <div className="mt-4 space-y-3">
-                {[
-                  { icon: Monitor, device: 'MacBook Pro · Chrome', time: 'Active now' },
-                  { icon: Smartphone, device: 'iPhone · Safari', time: 'Last active 2 days ago' },
-                ].map((session) => (
-                  <div
-                    key={session.device}
-                    className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <session.icon className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="text-[14px] font-semibold text-charcoal">{session.device}</p>
-                        <p className="text-[12px] text-gray-500">{session.time}</p>
-                      </div>
-                    </div>
-                    <button className="rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-500 hover:text-charcoal">
-                      Revoke
-                    </button>
-                  </div>
-                ))}
-              </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
+              Active session management will appear here once the backend exposes session endpoints.
             </div>
           </div>
         );
-
     }
   };
 

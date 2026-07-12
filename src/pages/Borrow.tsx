@@ -2,9 +2,14 @@ import { useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import clsx from 'clsx';
-import { getBorrowRecords, renewBorrowRecord, returnBorrowRecord } from '../api/borrow';
+import {
+  checkoutBorrowRecord,
+  getBorrowRecords,
+  renewBorrowRecord,
+  returnBorrowRecord,
+} from '../api/borrow';
 import { createReservation } from '../api/reservations';
 import { useDebounce } from '../hooks/useDebounce';
 import type { AdminOutletContext } from '../layouts/AdminLayout';
@@ -51,8 +56,8 @@ const formatDate = (date: string | null) => {
 const matchesBorrowSearch = (record: BorrowRecord, query: string) => {
   if (!query) return false;
   const normalizedQuery = query.toLowerCase();
-  return [record.memberId, record.memberName, record.title, record.author].some((value) =>
-    value.toLowerCase().includes(normalizedQuery)
+  return [record.isbn ?? '', record.memberId, record.memberName, record.title, record.author].some(
+    (value) => value.toLowerCase().includes(normalizedQuery)
   );
 };
 
@@ -78,6 +83,8 @@ export const Borrow = () => {
   const { checkoutSearchFields } = useOutletContext<AdminOutletContext>();
   const [search, setSearch] = useState('');
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [checkoutTarget, setCheckoutTarget] = useState<BorrowRecord | null>(null);
+  const [checkoutMemberId, setCheckoutMemberId] = useState('');
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const debouncedSearch = useDebounce(search.trim(), 300);
@@ -169,6 +176,25 @@ export const Borrow = () => {
     },
   });
 
+  const checkoutMutation = useMutation({
+    mutationFn: (record: BorrowRecord) =>
+      checkoutBorrowRecord({
+        bookId: record.bookId,
+        memberId: checkoutMemberId.trim() || record.memberId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['borrow-records'] });
+      setCheckoutTarget(null);
+      setCheckoutMemberId('');
+      setActionError(null);
+      setActionMessage('Book checked out successfully.');
+    },
+    onError: (error) => {
+      setActionMessage(null);
+      setActionError(getErrorMessage(error, 'Unable to check out this book. Please try again.'));
+    },
+  });
+
   useEffect(() => {
     if (!actionMessage) return;
 
@@ -184,7 +210,10 @@ export const Borrow = () => {
     : null;
 
   const isActionPending =
-    returnMutation.isPending || renewMutation.isPending || reserveMutation.isPending;
+    returnMutation.isPending ||
+    renewMutation.isPending ||
+    reserveMutation.isPending ||
+    checkoutMutation.isPending;
 
   const renderActions = (record: BorrowRecord) => {
     if (record.status === 'borrowed') {
@@ -239,7 +268,9 @@ export const Borrow = () => {
           onClick={(event) => {
             event.stopPropagation();
             setActionMessage(null);
-            setActionError('Check-out action is not wired yet.');
+            setActionError(null);
+            setCheckoutTarget(record);
+            setCheckoutMemberId(record.memberId);
           }}
           className="rounded-md bg-amber-gold px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-amber-gold/90"
         >
@@ -330,6 +361,7 @@ export const Borrow = () => {
           <table className="w-full min-w-[1000px] border-collapse text-left">
             <thead>
               <tr className="border-b border-gray-100">
+                <th className="px-5 py-4 text-[12px] font-bold text-charcoal">ISBN</th>
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Member ID</th>
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Member</th>
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Title</th>
@@ -345,7 +377,7 @@ export const Borrow = () => {
               {isLoading &&
                 Array.from({ length: 8 }).map((_, rowIndex) => (
                   <tr key={rowIndex} className="border-b border-gray-50 last:border-0">
-                    {Array.from({ length: 8 }).map((__, cellIndex) => (
+                    {Array.from({ length: 9 }).map((__, cellIndex) => (
                       <td key={cellIndex} className="px-5 py-5">
                         <div className="h-3 w-24 animate-pulse rounded-full bg-gray-100" />
                       </td>
@@ -355,7 +387,7 @@ export const Borrow = () => {
 
               {!isLoading && records.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center">
+                  <td colSpan={9} className="px-5 py-16 text-center">
                     <p className="text-[15px] font-semibold text-charcoal">
                       {debouncedSearch
                         ? 'No matching check-out records found'
@@ -385,6 +417,9 @@ export const Borrow = () => {
                         isSearchMatch && 'bg-amber-gold/5'
                       )}
                     >
+                      <td className="px-5 py-4 text-[13px] text-gray-600">
+                        <Highlight value={record.isbn ?? 'N/A'} query={debouncedSearch} />
+                      </td>
                       <td className="px-5 py-4 text-[13px] text-gray-600">
                         <Highlight value={record.memberId} query={debouncedSearch} />
                       </td>
@@ -438,6 +473,73 @@ export const Borrow = () => {
           </div>
         )}
       </div>
+
+      {checkoutTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-charcoal/40 px-4 py-8 backdrop-blur-sm">
+          <div className="w-[min(100%,32rem)] rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-6 flex items-start justify-between">
+              <div>
+                <h2 className="text-[20px] font-bold text-charcoal">Check Out Book</h2>
+                <p className="mt-1 text-[13px] text-gray-500">
+                  Confirm the member receiving this book.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCheckoutTarget(null)}
+                className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-charcoal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+              <p className="text-[15px] font-semibold text-charcoal">{checkoutTarget.title}</p>
+              <p className="mt-1 text-[13px] text-gray-500">
+                {checkoutTarget.author} · ISBN {checkoutTarget.isbn ?? 'N/A'}
+              </p>
+            </div>
+
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                checkoutMutation.mutate(checkoutTarget);
+              }}
+              className="mt-5 space-y-5"
+            >
+              <label className="block">
+                <span className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-gray-500">
+                  Member ID
+                </span>
+                <input
+                  required
+                  value={checkoutMemberId}
+                  onChange={(event) => setCheckoutMemberId(event.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] text-charcoal outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
+                  placeholder="Enter member ID"
+                />
+              </label>
+
+              <div className="flex justify-end gap-3 border-t border-gray-50 pt-5">
+                <button
+                  type="button"
+                  onClick={() => setCheckoutTarget(null)}
+                  className="rounded-full border border-gray-200 px-5 py-2.5 text-[14px] font-semibold text-gray-500 transition-colors hover:text-charcoal"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={checkoutMutation.isPending}
+                  className="inline-flex min-w-28 items-center justify-center rounded-full bg-amber-gold px-5 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-amber-gold/90 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {checkoutMutation.isPending ? 'Checking out...' : 'Check Out'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

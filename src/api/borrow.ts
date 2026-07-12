@@ -6,6 +6,11 @@ export interface BorrowQuery {
   fields?: string[];
 }
 
+export interface CheckoutPayload {
+  bookId: string;
+  memberId: string;
+}
+
 interface BorrowRecordsResponse {
   records?: BorrowRecord[];
   borrows?: BorrowRecord[];
@@ -44,6 +49,11 @@ export const getBorrowRecords = async ({ query, fields }: BorrowQuery): Promise<
   });
 
   return normalizeRecords(response.data);
+};
+
+export const checkoutBorrowRecord = async (payload: CheckoutPayload): Promise<BorrowRecord> => {
+  const response = await api.post<BorrowRecord | BorrowActionResponse>('/borrow', payload);
+  return normalizeActionRecord(response.data);
 };
 
 export const returnBorrowRecord = async (

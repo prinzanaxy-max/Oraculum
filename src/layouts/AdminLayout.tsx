@@ -6,6 +6,8 @@ import {
   Users,
   BookOpen,
   ClipboardCheck,
+  CalendarCheck,
+  Receipt,
   Settings,
   HelpCircle,
   LogOut,
@@ -20,6 +22,8 @@ const navItems = [
   { to: '/members', label: 'Members', icon: Users },
   { to: '/books/add', label: 'Add Books', icon: BookOpen },
   { to: '/checkout', label: 'Check-out Books', icon: ClipboardCheck },
+  { to: '/reservations', label: 'Reservations', icon: CalendarCheck },
+  { to: '/fines', label: 'Fines', icon: Receipt },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/help', label: 'Help', icon: HelpCircle },
 ];
@@ -37,13 +41,16 @@ export interface AdminOutletContext {
 }
 
 export const AdminLayout = () => {
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [checkoutSearchFields, setCheckoutSearchFields] = useState<string[]>(['title', 'author']);
   const [globalSearch, setGlobalSearch] = useState('');
   const isCheckoutPage = location.pathname === '/checkout';
+  const isMembersPage = location.pathname === '/members';
+  const profileName = user?.name ?? 'Admin';
+  const profileAvatar = `https://i.pravatar.cc/150?u=${encodeURIComponent(user?.email ?? profileName)}`;
 
   const handleLogout = () => {
     logout();
@@ -169,31 +176,36 @@ export const AdminLayout = () => {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : isMembersPage ? (
               <>
                 <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 stroke-[1.5]" />
                 <input
                   type="text"
                   value={globalSearch}
                   onChange={(event) => setGlobalSearch(event.target.value)}
-                  placeholder="Search Ex. ISBN, Title, Author, Member, etc"
+                  placeholder="Search member name, email, or ID"
                   className="w-full pl-11 pr-10 py-2.5 bg-gray-50 border-none rounded-full text-[14px] focus:ring-2 focus:ring-amber-gold/20 focus:bg-white transition-all outline-none text-charcoal placeholder:text-gray-400"
                 />
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2" />
               </>
+            ) : (
+              <div />
             )}
           </div>
 
           {/* Right Actions */}
           <div className="flex shrink-0 items-center gap-6">
             {/* Profile Chip */}
-            <button className="flex items-center gap-3 pl-2 pr-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-full transition-colors">
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="flex items-center gap-3 pl-2 pr-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-full transition-colors"
+            >
               <img
-                src="https://i.pravatar.cc/150?u=allison"
-                alt="Allison"
+                src={profileAvatar}
+                alt={profileName}
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="text-[14px] text-charcoal font-medium">Allison</span>
+              <span className="text-[14px] text-charcoal font-medium">{profileName}</span>
               <ChevronDown className="w-4 h-4 text-gray-500" />
             </button>
           </div>
