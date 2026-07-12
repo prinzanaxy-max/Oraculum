@@ -358,7 +358,7 @@ export const Borrow = () => {
 
       <div className="overflow-hidden rounded-2xl border border-gray-50 bg-white shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] border-collapse text-left">
+          <table className="w-full min-w-[920px] border-collapse text-left">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">ISBN</th>
@@ -476,7 +476,7 @@ export const Borrow = () => {
 
       {checkoutTarget && (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-charcoal/40 px-4 py-8 backdrop-blur-sm">
-          <div className="w-[min(100%,32rem)] rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="max-h-[calc(100dvh-4rem)] w-[min(100%,32rem)] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <h2 className="text-[20px] font-bold text-charcoal">Check Out Book</h2>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { AxiosError } from 'axios';
 import { Link } from 'react-router-dom';
-import { Mail, ShieldCheck } from 'lucide-react';
+import { Mail, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { requestPasswordReset } from '../api/auth';
+import { useThemeStore } from '../store/themeStore';
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof AxiosError) {
@@ -18,6 +19,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export const ForgotPassword = () => {
+  const { appliedTheme, toggleTheme } = useThemeStore();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -40,8 +42,18 @@ export const ForgotPassword = () => {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-cream px-6 py-10 font-sans">
-      <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white p-8 shadow-xl shadow-charcoal/5">
+    <main className="relative flex min-h-screen items-center justify-center bg-cream px-4 py-10 font-sans sm:px-6">
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="fixed right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-100 bg-white text-charcoal transition-colors hover:bg-gray-50"
+        aria-label={`Switch to ${appliedTheme === 'dark' ? 'light' : 'dark'} mode`}
+        title={`Switch to ${appliedTheme === 'dark' ? 'light' : 'dark'} mode`}
+      >
+        {appliedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+
+      <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white p-6 shadow-xl shadow-charcoal/5 sm:p-8">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-gold/10 text-amber-gold">
           <ShieldCheck className="h-7 w-7" />
         </div>

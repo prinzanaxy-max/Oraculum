@@ -71,7 +71,7 @@ export const Reservations = () => {
 
       <div className="overflow-hidden rounded-2xl border border-gray-50 bg-white shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] border-collapse text-left">
+          <table className="w-full min-w-[700px] border-collapse text-left">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="px-5 py-4 text-[12px] font-bold text-charcoal">Book</th>

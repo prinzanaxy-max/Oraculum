@@ -153,8 +153,8 @@ export const Dashboard = () => {
         </div>
       )}
 
-      <div className="flex justify-end">
-        <label className="flex items-center gap-2 rounded-full border border-gray-100 bg-white px-4 py-2 text-[13px] font-medium text-charcoal shadow-sm">
+      <div className="flex justify-stretch sm:justify-end">
+        <label className="flex w-full items-center justify-between gap-2 rounded-full border border-gray-100 bg-white px-4 py-2 text-[13px] font-medium text-charcoal shadow-sm sm:w-auto sm:justify-start">
           <span className="text-gray-400">Range</span>
           <select
             value={range}
@@ -182,7 +182,7 @@ export const Dashboard = () => {
               return (
                 <div
                   key={config.key}
-                  className="flex h-[110px] flex-col justify-between rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]"
+                  className="flex h-[110px] flex-col justify-between rounded-2xl border border-gray-50 bg-white p-5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] sm:p-6"
                 >
                   <span className="text-[13px] font-medium text-gray-500">{config.label}</span>
                   <div className="mt-2 flex items-end justify-between">
@@ -206,9 +206,9 @@ export const Dashboard = () => {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] lg:col-span-7 xl:col-span-8">
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-[16px] font-bold text-charcoal">Check-out statistics</h3>
-            <div className="flex items-center gap-4 text-[13px] font-medium text-gray-500">
+            <div className="flex flex-wrap items-center gap-4 text-[13px] font-medium text-gray-500">
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-amber-gold" />
                 Borrowed
@@ -286,7 +286,7 @@ export const Dashboard = () => {
         <div className="flex flex-col rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] lg:col-span-5 xl:col-span-4">
           <h3 className="mb-6 text-[16px] font-bold text-charcoal">Overdue's History</h3>
           <div className="flex-1 overflow-x-auto">
-            <table className="min-w-[720px] table-fixed border-collapse text-left">
+            <table className="min-w-[640px] table-fixed border-collapse text-left">
               <colgroup>
                 <col className="w-[110px]" />
                 <col className="w-[180px]" />
@@ -365,7 +365,7 @@ export const Dashboard = () => {
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap border-collapse text-left">
+            <table className="w-full min-w-[840px] whitespace-nowrap border-collapse text-left">
               <thead>
                 <tr>
                   <th className="pb-4 text-[12px] font-semibold uppercase tracking-wider text-gray-400">

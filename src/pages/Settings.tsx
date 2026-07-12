@@ -192,7 +192,7 @@ export const Settings = () => {
       case 'profile':
         return (
           <form onSubmit={handleProfileSubmit} className="space-y-6">
-            <div className="flex items-center gap-5">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
               <div className="relative">
                 <img
                   src={currentProfile.avatarUrl || defaultProfile.avatarUrl}
@@ -455,7 +455,7 @@ export const Settings = () => {
           </nav>
         </aside>
 
-        <section className="p-6 lg:p-8">
+        <section className="p-4 sm:p-6 lg:p-8">
           {(profileQuery.isLoading || preferencesQuery.isLoading) && (
             <div className="mb-5 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-500">
               Loading saved settings...

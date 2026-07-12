@@ -100,7 +100,7 @@ export const Help = () => {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+        <section className="rounded-2xl border border-gray-50 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] sm:p-6">
           <h2 className="text-[18px] font-bold text-charcoal">Frequently Asked Questions</h2>
 
           <div className="mt-5 divide-y divide-gray-100">
@@ -147,7 +147,7 @@ export const Help = () => {
           )}
         </section>
 
-        <section className="rounded-2xl border border-gray-50 bg-white p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+        <section className="rounded-2xl border border-gray-50 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] sm:p-6">
           <h2 className="text-[18px] font-bold text-charcoal">Still need help?</h2>
           <p className="mt-1 text-[13px] text-gray-500">
             Our support team typically responds within 24 hours.

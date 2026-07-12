@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -12,10 +13,17 @@ import { Reservations } from './pages/Reservations';
 import { Fines } from './pages/Fines';
 import { Settings } from './pages/Settings';
 import { Help } from './pages/Help';
+import { useThemeStore } from './store/themeStore';
 
 const queryClient = new QueryClient();
 
 function App() {
+  const initializeTheme = useThemeStore((state) => state.initializeTheme);
+
+  useEffect(() => {
+    initializeTheme();
+  }, [initializeTheme]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

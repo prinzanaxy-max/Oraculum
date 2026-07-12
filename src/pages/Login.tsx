@@ -5,7 +5,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 import { login, register, signInWithGoogle } from '../api/auth';
+import { Moon, Sun } from 'lucide-react';
 import clsx from 'clsx';
 
 // Schemas
@@ -112,6 +114,7 @@ export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const { appliedTheme, toggleTheme } = useThemeStore();
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -233,10 +236,12 @@ export const Login = () => {
           callback: handleGoogleCredential,
         });
 
+        const buttonWidth = Math.min(420, googleButtonRef.current.clientWidth || 420);
+
         window.google.accounts.id.renderButton(googleButtonRef.current, {
           theme: 'outline',
           size: 'large',
-          width: 420,
+          width: buttonWidth,
           text: activeTab === 'signin' ? 'signin_with' : 'signup_with',
           shape: 'rectangular',
         });
@@ -253,9 +258,18 @@ export const Login = () => {
   }, [activeTab, googleClientId, handleGoogleCredential]);
 
   return (
-    <main className="flex min-h-screen bg-background text-on-background selection:bg-secondary-container selection:text-on-secondary-container flex-col lg:flex-row">
+    <main className="flex min-h-screen flex-col bg-background text-on-background selection:bg-secondary-container selection:text-on-secondary-container lg:flex-row">
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="fixed right-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/40 bg-surface-container-lowest text-primary transition-colors hover:bg-surface-container-low"
+        aria-label={`Switch to ${appliedTheme === 'dark' ? 'light' : 'dark'} mode`}
+        title={`Switch to ${appliedTheme === 'dark' ? 'light' : 'dark'} mode`}
+      >
+        {appliedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
       {/* Left Panel: Brand & Identity */}
-      <section className="w-full lg:w-[45%] lg:fixed lg:h-screen bg-primary-container relative overflow-hidden flex flex-col justify-between p-8 lg:p-12 z-10">
+      <section className="relative z-10 flex w-full flex-col justify-between overflow-hidden bg-primary-container p-6 sm:p-8 lg:fixed lg:h-screen lg:w-[45%] lg:p-12">
         {/* Decorative Background Overlay */}
         <div className="absolute inset-0 opacity-50 mix-blend-soft-light pointer-events-none">
           <img
@@ -282,7 +296,7 @@ export const Login = () => {
       </section>
 
       {/* Right Panel: Authentication */}
-      <section className="w-full lg:w-[55%] lg:ml-[45%] flex flex-col items-center justify-center p-6 lg:p-12 bg-surface min-h-screen relative">
+      <section className="relative flex min-h-screen w-full flex-col items-center justify-center bg-surface p-5 sm:p-6 lg:ml-[45%] lg:w-[55%] lg:p-12">
         <div className="w-full max-w-[420px]">
           {/* Toggle Tabs */}
           <div className="flex items-center space-x-8 mb-8 border-b border-outline-variant/30">
