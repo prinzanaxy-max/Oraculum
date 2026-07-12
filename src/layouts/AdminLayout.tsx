@@ -109,7 +109,7 @@ export const AdminLayout = () => {
               'relative min-w-0',
               isCheckoutPage
                 ? 'w-[420px] min-w-[320px] max-w-[48vw] flex-none'
-                : 'w-[420px] min-w-[360px] max-w-xl flex-none'
+                : 'flex-1 max-w-xl'
             )}
           >
             {isCheckoutPage ? (
