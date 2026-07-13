@@ -152,7 +152,7 @@ export const Settings = () => {
       const updatedProfile = toAdminProfile(response.user);
       setProfile(updatedProfile);
       if (token) {
-        setAuth(token, updatedProfile, refreshToken ?? undefined);
+        setAuth(token, toAuthUser(updatedProfile), refreshToken ?? undefined);
       }
       queryClient.setQueryData(['current-admin'], updatedProfile);
       setErrorMessage(null);
