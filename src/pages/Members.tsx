@@ -5,6 +5,8 @@ import { Search, UserPlus, X } from 'lucide-react';
 import clsx from 'clsx';
 import { createMember, deleteMember, getMembers, updateMember } from '../api/members';
 import type { MemberPayload } from '../api/members';
+import { PaginationControls } from '../components/PaginationControls';
+import { useClientPagination } from '../hooks/useClientPagination';
 import { useDebounce } from '../hooks/useDebounce';
 import type { Member } from '../types';
 
@@ -83,6 +85,8 @@ export const Members = () => {
     queryKey: ['members', debouncedSearch],
     queryFn: () => getMembers(debouncedSearch),
   });
+
+  const { paginatedItems, ...pagination } = useClientPagination(members);
 
   const saveMutation = useMutation({
     mutationFn: (payload: MemberPayload) =>
@@ -249,7 +253,7 @@ export const Members = () => {
               )}
 
               {!isLoading &&
-                members.map((member) => {
+                paginatedItems.map((member) => {
                   const memberId = getMemberDisplayId(member);
                   const registerId = getRegisterId(member);
                   const isSearchMatch = matchesMemberSearch(member, debouncedSearch);
@@ -304,6 +308,7 @@ export const Members = () => {
             Refreshing members...
           </div>
         )}
+        <PaginationControls {...pagination} onPageChange={pagination.setPage} />
       </div>
 
       {isModalOpen && (

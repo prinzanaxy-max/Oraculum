@@ -1,8 +1,18 @@
+import { useState } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { getFines, payFine, waiveFine } from '../api/fines';
+import { PaginationControls } from '../components/PaginationControls';
+import { useClientPagination } from '../hooks/useClientPagination';
 import type { Fine } from '../types';
+
+const statusFilterOptions: Array<{ value: Fine['status'] | 'all'; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'waived', label: 'Waived' },
+];
 
 const statusStyles: Record<Fine['status'], string> = {
   pending: 'bg-red-50 text-red-500',
@@ -32,6 +42,7 @@ const formatDate = (date: string) =>
 
 export const Fines = () => {
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<Fine['status'] | 'all'>('all');
 
   const {
     data: fines = [],
@@ -39,9 +50,11 @@ export const Fines = () => {
     isFetching,
     error,
   } = useQuery({
-    queryKey: ['fines'],
-    queryFn: () => getFines(),
+    queryKey: ['fines', statusFilter],
+    queryFn: () => getFines(statusFilter === 'all' ? undefined : statusFilter),
   });
+
+  const { paginatedItems, ...pagination } = useClientPagination(fines);
 
   const payMutation = useMutation({
     mutationFn: (fine: Fine) => payFine(fine.id),
@@ -65,11 +78,30 @@ export const Fines = () => {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 pb-8 font-sans">
-      <div>
-        <h1 className="text-[20px] font-bold text-charcoal">Fines Management</h1>
-        <p className="mt-1 text-[13px] text-gray-500">
-          Review overdue fines, mark payments, or waive balances.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-[20px] font-bold text-charcoal">Fines Management</h1>
+          <p className="mt-1 text-[13px] text-gray-500">
+            Review overdue fines, mark payments, or waive balances.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {statusFilterOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setStatusFilter(option.value)}
+              className={clsx(
+                'rounded-full px-4 py-2 text-[13px] font-semibold transition-colors',
+                statusFilter === option.value
+                  ? 'bg-charcoal text-white'
+                  : 'border border-gray-200 text-gray-500 hover:text-charcoal'
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {errorMessage && (
@@ -115,7 +147,7 @@ export const Fines = () => {
               )}
 
               {!isLoading &&
-                fines.map((fine) => (
+                paginatedItems.map((fine) => (
                   <tr
                     key={fine.id}
                     className="group border-b border-gray-50 transition-colors last:border-0 hover:bg-gray-50/80"
@@ -177,6 +209,7 @@ export const Fines = () => {
             Refreshing fines...
           </div>
         )}
+        <PaginationControls {...pagination} onPageChange={pagination.setPage} />
       </div>
     </div>
   );

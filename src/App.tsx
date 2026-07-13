@@ -6,6 +6,8 @@ import { AuthGuard } from './components/AuthGuard';
 import { Login } from './pages/Login';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
+import { Terms } from './pages/Terms';
+import { Privacy } from './pages/Privacy';
 import { Dashboard } from './pages/Dashboard';
 import { Books } from './pages/Books';
 import { Members } from './pages/Members';
@@ -32,6 +34,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           <Route
             path="/"
@@ -44,7 +48,8 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="members" element={<Members />} />
-            <Route path="books/add" element={<Books />} />
+            <Route path="books" element={<Books />} />
+            <Route path="books/add" element={<Navigate to="/books" replace />} />
             <Route path="checkout" element={<Borrow />} />
             <Route path="reservations" element={<Reservations />} />
             <Route path="fines" element={<Fines />} />

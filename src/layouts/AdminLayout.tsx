@@ -5,6 +5,7 @@ import { useThemeStore } from '../store/themeStore';
 import { logoutSession } from '../api/auth';
 import { useCurrentAdminProfile } from '../hooks/useCurrentAdminProfile';
 import { resolveProfileAvatarUrl } from '../utils/profileAvatar';
+import { OraculumLogo } from '../components/OraculumLogo';
 import {
   LayoutDashboard,
   Users,
@@ -17,7 +18,6 @@ import {
   LogOut,
   Search,
   ChevronDown,
-  Library,
   Menu,
   Moon,
   Sun,
@@ -28,7 +28,7 @@ import clsx from 'clsx';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/members', label: 'Members', icon: Users },
-  { to: '/books/add', label: 'Add Books', icon: BookOpen },
+  { to: '/books', label: 'Books', icon: BookOpen },
   { to: '/checkout', label: 'Check-out Books', icon: ClipboardCheck },
   { to: '/reservations', label: 'Reservations', icon: CalendarCheck },
   { to: '/fines', label: 'Fines', icon: Receipt },
@@ -84,11 +84,8 @@ export const AdminLayout = () => {
 
   const sidebarContent = (
     <>
-      <div className="flex items-center gap-3 p-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-gold/10 text-amber-gold">
-          <Library className="h-5 w-5" />
-        </div>
-        <h1 className="font-serif text-2xl font-bold tracking-tight text-charcoal">Oraculum</h1>
+      <div className="p-6">
+        <OraculumLogo wordmarkClassName="text-[24px]" />
       </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
@@ -148,11 +145,8 @@ export const AdminLayout = () => {
         )}
       >
         <div className="flex items-center justify-between pr-4">
-          <div className="flex items-center gap-3 p-6">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-gold/10 text-amber-gold">
-              <Library className="h-5 w-5" />
-            </div>
-            <h1 className="font-serif text-2xl font-bold tracking-tight text-charcoal">Oraculum</h1>
+          <div className="p-6">
+            <OraculumLogo wordmarkClassName="text-[24px]" />
           </div>
           <button
             type="button"
@@ -211,12 +205,7 @@ export const AdminLayout = () => {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-gold/10 text-amber-gold">
-                <Library className="h-5 w-5" />
-              </div>
-              <span className="font-serif text-xl font-bold text-charcoal">Oraculum</span>
-            </div>
+            <OraculumLogo wordmarkClassName="text-xl" />
           </div>
           {/* Search */}
           <div

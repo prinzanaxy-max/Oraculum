@@ -1,14 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getCurrentAdmin, type AdminProfile } from '../api/auth';
+import { getCurrentAdmin, toAuthUser } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
-
-const toAuthUser = (profile: AdminProfile) => ({
-  id: profile.id,
-  name: profile.name,
-  email: profile.email,
-  avatarUrl: profile.avatarUrl,
-});
 
 export const useCurrentAdminProfile = () => {
   const token = useAuthStore((state) => state.token);

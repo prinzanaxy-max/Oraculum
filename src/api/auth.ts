@@ -55,6 +55,37 @@ export interface AvatarUploadResponse {
   user: AvatarUploadUser;
 }
 
+type AdminProfileSource = {
+  id?: string;
+  name?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
+};
+
+export const normalizeAdminProfile = (data: unknown): AdminProfile => {
+  const source =
+    data && typeof data === 'object' && 'user' in data
+      ? (data as { user: AdminProfileSource }).user
+      : (data as AdminProfileSource);
+
+  return {
+    id: source.id ?? '',
+    name: source.name || source.fullName || source.email || '',
+    email: source.email ?? '',
+    phone: source.phone ?? undefined,
+    avatarUrl: source.avatarUrl ?? undefined,
+  };
+};
+
+export const toAuthUser = (profile: AdminProfile) => ({
+  id: profile.id,
+  name: profile.name,
+  email: profile.email,
+  avatarUrl: profile.avatarUrl,
+});
+
 export const toAdminProfile = (user: AvatarUploadUser): AdminProfile => ({
   id: user.id,
   name: user.name || user.fullName || user.email,
@@ -64,15 +95,22 @@ export const toAdminProfile = (user: AvatarUploadUser): AdminProfile => ({
 });
 
 export const getCurrentAdmin = async (): Promise<AdminProfile> => {
-  const response = await api.get<AdminProfile>('/auth/me');
-  return response.data;
+  const response = await api.get<unknown>('/auth/me');
+  return normalizeAdminProfile(response.data);
 };
 
 export const updateCurrentAdmin = async (
   payload: Omit<AdminProfile, 'id'>
 ): Promise<AdminProfile> => {
-  const response = await api.put<AdminProfile>('/auth/me', payload);
-  return response.data;
+  const response = await api.put<unknown>('/auth/me', {
+    name: payload.name,
+    fullName: payload.name,
+    email: payload.email,
+    phone: payload.phone ?? null,
+    avatarUrl: payload.avatarUrl,
+  });
+
+  return normalizeAdminProfile(response.data);
 };
 
 export const uploadProfilePicture = async (file: File): Promise<AvatarUploadResponse> => {

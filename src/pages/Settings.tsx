@@ -14,6 +14,7 @@ import {
   revokeAuthSession,
   revokeOtherAuthSessions,
   toAdminProfile,
+  toAuthUser,
   updateCurrentAdmin,
   uploadProfilePicture,
   type AdminProfile,
@@ -132,9 +133,10 @@ export const Settings = () => {
   const profileMutation = useMutation({
     mutationFn: updateCurrentAdmin,
     onSuccess: (updatedProfile) => {
-      setProfile(updatedProfile);
+      queryClient.setQueryData(['current-admin'], updatedProfile);
+      setProfile({});
       if (token) {
-        setAuth(token, updatedProfile, refreshToken ?? undefined);
+        setAuth(token, toAuthUser(updatedProfile), refreshToken ?? undefined);
       }
       setErrorMessage(null);
       setSuccessMessage('Profile saved successfully.');

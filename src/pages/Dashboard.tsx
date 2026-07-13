@@ -23,6 +23,7 @@ import {
   type DashboardRange,
   type DashboardStats,
 } from '../api/dashboard';
+import { useThemeStore } from '../store/themeStore';
 
 const statConfig: Array<{
   key: keyof DashboardStats;
@@ -102,6 +103,7 @@ const StatSkeleton = () => (
 
 export const Dashboard = () => {
   const navigate = useNavigate();
+  const appliedTheme = useThemeStore((state) => state.appliedTheme);
   const [activeTab, setActiveTab] = useState<'top' | 'new'>('top');
   const [range, setRange] = useState<DashboardRange>('last_6_months');
 
@@ -138,6 +140,29 @@ export const Dashboard = () => {
     booksPanelQuery.error,
   ].filter(Boolean);
 
+  const errorMessages = [
+    ...new Set(
+      errors.map((error) => getErrorMessage(error, 'Unable to load dashboard data.'))
+    ),
+  ];
+
+  const chartGridColor = appliedTheme === 'dark' ? '#34302c' : '#f0f0f0';
+  const chartTickColor = appliedTheme === 'dark' ? '#9a9289' : '#9CA3AF';
+  const chartTooltipStyle =
+    appliedTheme === 'dark'
+      ? {
+          borderRadius: '8px',
+          border: '1px solid #34302c',
+          backgroundColor: '#1a1817',
+          color: '#f7f3ec',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.3)',
+        }
+      : {
+          borderRadius: '8px',
+          border: 'none',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        };
+
   const chartData =
     checkoutStatsQuery.data?.map((point) => ({
       name: point.day,
@@ -147,9 +172,16 @@ export const Dashboard = () => {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 pb-8">
-      {errors.length > 0 && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
-          {getErrorMessage(errors[0], 'Unable to load dashboard data.')}
+      {errorMessages.length > 0 && (
+        <div className="space-y-2">
+          {errorMessages.map((message) => (
+            <div
+              key={message}
+              className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600"
+            >
+              {message}
+            </div>
+          ))}
         </div>
       )}
 
@@ -240,27 +272,21 @@ export const Dashboard = () => {
                       <stop offset="95%" stopColor="#F87171" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
                   <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                    tick={{ fontSize: 12, fill: chartTickColor }}
                     dy={10}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                    tick={{ fontSize: 12, fill: chartTickColor }}
                     tickFormatter={(value) => (value >= 1000 ? `${value / 1000}K` : String(value))}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: '8px',
-                      border: 'none',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                    }}
-                  />
+                  <Tooltip contentStyle={chartTooltipStyle} />
                   <Area
                     type="monotone"
                     dataKey="borrowed"

@@ -1,25 +1,25 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { AxiosError } from 'axios';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { ChevronDown, Mail, Phone, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { sendSupportMessage } from '../api/support';
+import { getLibraryPreferences } from '../api/settings';
+import { useAuthStore } from '../store/authStore';
 
-const faqs = [
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL ?? 'support@oraculum.edu';
+const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE ?? '+1 (555) 014-0986';
+
+const baseFaqs = [
   {
     question: 'How do I add a new book to the catalog?',
     answer:
-      'Open Add Books from the sidebar, enter the book details, and save the record. Once saved, the book becomes searchable in the catalog and can be checked out if available.',
+      'Open Books from the sidebar, enter the book details, and save the record. Once saved, the book becomes searchable in the catalog and can be checked out if available.',
   },
   {
     question: 'How do I check out a book to a member?',
     answer:
       'Go to Check-out Books, search for the member or book, and use the Check Out action on an available record. The system records the borrowed date and calculates the return date from your library preferences.',
-  },
-  {
-    question: 'How are overdue fines calculated?',
-    answer:
-      'Overdue fines are calculated from the due date using your configured fine-per-day amount in Settings. Returned books can display any fine due after the return action completes.',
   },
   {
     question: 'How do reservations work?',
@@ -61,20 +61,41 @@ const mapValidationError = (message: string) => {
 };
 
 export const Help = () => {
+  const token = useAuthStore((state) => state.token);
   const [search, setSearch] = useState('');
-  const [openQuestion, setOpenQuestion] = useState<string | null>(faqs[0].question);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ subject?: string; message?: string }>({});
 
+  const preferencesQuery = useQuery({
+    queryKey: ['library-preferences'],
+    queryFn: getLibraryPreferences,
+    enabled: Boolean(token),
+  });
+
+  const faqs = useMemo(() => {
+    const finePerDay = preferencesQuery.data?.finePerDay ?? 1;
+
+    return [
+      ...baseFaqs.slice(0, 2),
+      {
+        question: 'How are overdue fines calculated?',
+        answer: `Overdue fines are calculated from the due date at $${finePerDay.toFixed(2)} per day, based on your library preferences in Settings. Returned books can display any fine due after the return action completes.`,
+      },
+      ...baseFaqs.slice(2),
+    ];
+  }, [preferencesQuery.data?.finePerDay]);
+
+  const [openQuestion, setOpenQuestion] = useState<string | null>(null);
+
   const filteredFaqs = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return faqs;
 
     return faqs.filter((faq) => faq.question.toLowerCase().includes(query));
-  }, [search]);
+  }, [faqs, search]);
 
   const contactMutation = useMutation({
     mutationFn: sendSupportMessage,
@@ -283,14 +304,20 @@ export const Help = () => {
           )}
 
           <div className="mt-6 space-y-3 border-t border-gray-100 pt-5">
-            <div className="flex items-center gap-3 text-[13px] text-gray-500">
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="flex items-center gap-3 text-[13px] text-gray-500 transition-colors hover:text-charcoal"
+            >
               <Mail className="h-4 w-4 text-amber-gold" />
-              support@oraculum.edu
-            </div>
-            <div className="flex items-center gap-3 text-[13px] text-gray-500">
+              {SUPPORT_EMAIL}
+            </a>
+            <a
+              href={`tel:${SUPPORT_PHONE.replace(/[^\d+]/g, '')}`}
+              className="flex items-center gap-3 text-[13px] text-gray-500 transition-colors hover:text-charcoal"
+            >
               <Phone className="h-4 w-4 text-amber-gold" />
-              +1 (555) 014-0986
-            </div>
+              {SUPPORT_PHONE}
+            </a>
           </div>
         </section>
       </div>

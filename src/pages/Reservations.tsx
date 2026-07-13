@@ -1,8 +1,18 @@
+import { useState } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { cancelReservation, getReservations } from '../api/reservations';
+import { PaginationControls } from '../components/PaginationControls';
+import { useClientPagination } from '../hooks/useClientPagination';
 import type { Reservation } from '../types';
+
+const statusFilterOptions: Array<{ value: Reservation['status'] | 'all'; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'fulfilled', label: 'Fulfilled' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 const statusStyles: Record<Reservation['status'], string> = {
   pending: 'bg-amber-gold/10 text-charcoal',
@@ -32,6 +42,7 @@ const formatDate = (date: string) =>
 
 export const Reservations = () => {
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<Reservation['status'] | 'all'>('all');
 
   const {
     data: reservations = [],
@@ -39,9 +50,11 @@ export const Reservations = () => {
     isFetching,
     error,
   } = useQuery({
-    queryKey: ['reservations'],
-    queryFn: () => getReservations(),
+    queryKey: ['reservations', statusFilter],
+    queryFn: () => getReservations(statusFilter === 'all' ? undefined : statusFilter),
   });
+
+  const { paginatedItems, ...pagination } = useClientPagination(reservations);
 
   const cancelMutation = useMutation({
     mutationFn: (reservation: Reservation) => cancelReservation(reservation.id),
@@ -56,11 +69,30 @@ export const Reservations = () => {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 pb-8 font-sans">
-      <div>
-        <h1 className="text-[20px] font-bold text-charcoal">Reservations</h1>
-        <p className="mt-1 text-[13px] text-gray-500">
-          Review pending reservations and cancel requests when needed.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-[20px] font-bold text-charcoal">Reservations</h1>
+          <p className="mt-1 text-[13px] text-gray-500">
+            Review pending reservations and cancel requests when needed.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {statusFilterOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setStatusFilter(option.value)}
+              className={clsx(
+                'rounded-full px-4 py-2 text-[13px] font-semibold transition-colors',
+                statusFilter === option.value
+                  ? 'bg-charcoal text-white'
+                  : 'border border-gray-200 text-gray-500 hover:text-charcoal'
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {errorMessage && (
@@ -105,7 +137,7 @@ export const Reservations = () => {
               )}
 
               {!isLoading &&
-                reservations.map((reservation) => (
+                paginatedItems.map((reservation) => (
                   <tr
                     key={reservation.id}
                     className="group border-b border-gray-50 transition-colors last:border-0 hover:bg-gray-50/80"
@@ -156,6 +188,7 @@ export const Reservations = () => {
             Refreshing reservations...
           </div>
         )}
+        <PaginationControls {...pagination} onPageChange={pagination.setPage} />
       </div>
     </div>
   );

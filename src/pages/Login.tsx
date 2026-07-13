@@ -619,8 +619,14 @@ export const Login = () => {
                     />
                   </div>
                   <span className="font-body-md text-sm text-on-surface-variant leading-tight">
-                    I agree to the <span className="text-secondary">Terms of Service</span> and{' '}
-                    <span className="text-secondary">Privacy Policy</span>
+                    I agree to the{' '}
+                    <Link to="/terms" className="text-secondary hover:underline">
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link to="/privacy" className="text-secondary hover:underline">
+                      Privacy Policy
+                    </Link>
                   </span>
                 </label>
                 {signUpForm.formState.errors.terms && (

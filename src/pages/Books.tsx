@@ -5,6 +5,8 @@ import { BookOpen, CheckCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-r
 import clsx from 'clsx';
 import { createBook, deleteBook, getBooks, updateBook } from '../api/books';
 import type { BookPayload } from '../api/books';
+import { PaginationControls } from '../components/PaginationControls';
+import { useClientPagination } from '../hooks/useClientPagination';
 import { useDebounce } from '../hooks/useDebounce';
 import type { Book } from '../types';
 
@@ -85,6 +87,8 @@ export const Books = () => {
     () => [...books].sort((a, b) => a.title.localeCompare(b.title)),
     [books]
   );
+
+  const { paginatedItems, ...pagination } = useClientPagination(sortedBooks);
 
   const saveMutation = useMutation({
     mutationFn: (payload: BookPayload) =>
@@ -270,7 +274,7 @@ export const Books = () => {
               )}
 
               {!isLoading &&
-                sortedBooks.map((book) => (
+                paginatedItems.map((book) => (
                   <tr
                     key={book.id}
                     className="group border-b border-gray-50 transition-colors last:border-0 hover:bg-gray-50/80"
@@ -330,6 +334,7 @@ export const Books = () => {
             Refreshing books...
           </div>
         )}
+        <PaginationControls {...pagination} onPageChange={pagination.setPage} />
       </div>
 
       {isFormOpen && (
