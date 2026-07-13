@@ -1,11 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, Mail, Phone, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { sendSupportMessage } from '../api/support';
-import { useAuthStore } from '../store/authStore';
 
 const faqs = [
   {
@@ -63,10 +61,6 @@ const mapValidationError = (message: string) => {
 };
 
 export const Help = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const logout = useAuthStore((state) => state.logout);
-
   const [search, setSearch] = useState('');
   const [openQuestion, setOpenQuestion] = useState<string | null>(faqs[0].question);
   const [subject, setSubject] = useState('');
@@ -92,12 +86,6 @@ export const Help = () => {
       setMessage('');
     },
     onError: (error) => {
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        logout();
-        navigate('/login', { state: { from: location }, replace: true });
-        return;
-      }
-
       const message = getErrorMessage(error, 'Unable to send your message. Please try again.');
 
       if (error instanceof AxiosError && error.response?.status === 400) {

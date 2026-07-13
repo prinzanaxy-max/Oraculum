@@ -20,17 +20,30 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: localStorage.getItem('oraculum_user')
     ? JSON.parse(localStorage.getItem('oraculum_user') as string)
     : null,
-  setAuth: (token, user = null, refreshToken) => {
+  setAuth: (token, user, refreshToken) => {
     localStorage.setItem('oraculum_token', token);
-    if (refreshToken) {
-      localStorage.setItem('oraculum_refresh_token', refreshToken);
+
+    if (refreshToken !== undefined) {
+      if (refreshToken) {
+        localStorage.setItem('oraculum_refresh_token', refreshToken);
+      } else {
+        localStorage.removeItem('oraculum_refresh_token');
+      }
     }
-    if (user) {
-      localStorage.setItem('oraculum_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('oraculum_user');
+
+    if (user !== undefined) {
+      if (user) {
+        localStorage.setItem('oraculum_user', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('oraculum_user');
+      }
     }
-    set({ token, user, refreshToken: refreshToken ?? null });
+
+    set((state) => ({
+      token,
+      user: user !== undefined ? user : state.user,
+      refreshToken: refreshToken !== undefined ? refreshToken : state.refreshToken,
+    }));
   },
   logout: () => {
     localStorage.removeItem('oraculum_token');
