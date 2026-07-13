@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useCurrentAdminProfile } from '../hooks/useCurrentAdminProfile';
+import { resolveProfileAvatarUrl } from '../utils/profileAvatar';
 import {
   LayoutDashboard,
   Users,
@@ -56,10 +57,8 @@ export const AdminLayout = () => {
   const [checkoutSearchFields, setCheckoutSearchFields] = useState<string[]>(['title', 'author']);
   const isCheckoutPage = location.pathname === '/checkout';
   const profileName = user?.name ?? 'Admin';
-  const profileAvatar =
-    profileQuery.data?.avatarUrl ??
-    user?.avatarUrl ??
-    `https://i.pravatar.cc/150?u=${encodeURIComponent(user?.email ?? profileName)}`;
+  const profileAvatar = resolveProfileAvatarUrl(profileQuery.data?.avatarUrl, user?.avatarUrl);
+  const profileInitial = profileName.charAt(0).toUpperCase();
 
   const handleLogout = () => {
     logout();
@@ -298,11 +297,17 @@ export const AdminLayout = () => {
               onClick={() => navigate('/settings')}
               className="flex min-w-0 items-center gap-2 rounded-full border border-gray-100 bg-gray-50 py-1.5 pl-2 pr-3 transition-colors hover:bg-gray-100 sm:gap-3"
             >
-              <img
-                src={profileAvatar}
-                alt={profileName}
-                className="h-8 w-8 shrink-0 rounded-full object-cover"
-              />
+              {profileAvatar ? (
+                <img
+                  src={profileAvatar}
+                  alt={profileName}
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-gold/15 text-[13px] font-semibold text-amber-gold">
+                  {profileInitial}
+                </div>
+              )}
               <span className="hidden max-w-32 truncate text-[14px] font-medium text-charcoal sm:inline">
                 {profileName}
               </span>

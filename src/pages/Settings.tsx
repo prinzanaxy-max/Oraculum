@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
-import { Camera, Monitor, Smartphone } from 'lucide-react';
+import { Camera, Laptop, Monitor, Smartphone, Tablet } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/authStore';
 import { useCurrentAdminProfile } from '../hooks/useCurrentAdminProfile';
+import { resolveProfileAvatarUrl } from '../utils/profileAvatar';
 import {
   changePassword,
   getAuthSessions,
@@ -38,12 +39,24 @@ const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 
 const formatSessionDate = (value: string) => format(new Date(value), 'MMM d, yyyy h:mm a');
 
-const defaultProfile: AdminProfile = {
+const getSessionDeviceIcon = (deviceLabel?: string) => {
+  switch (deviceLabel) {
+    case 'Mobile device':
+      return Smartphone;
+    case 'Tablet':
+      return Tablet;
+    case 'Desktop browser':
+      return Monitor;
+    default:
+      return Laptop;
+  }
+};
+
+const defaultProfile: Omit<AdminProfile, 'avatarUrl'> = {
   id: 'local-admin',
   name: 'Allison',
   email: 'allison@oraculum.edu',
   phone: '',
-  avatarUrl: 'https://i.pravatar.cc/150?u=allison',
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -61,9 +74,11 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 export const Settings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const logout = useAuthStore((state) => state.logout);
   const setAuth = useAuthStore((state) => state.setAuth);
+  const authUser = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const refreshToken = useAuthStore((state) => state.refreshToken);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -77,20 +92,42 @@ export const Settings = () => {
   });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
 
   const profileQuery = useCurrentAdminProfile();
 
   const preferencesQuery = useQuery({
     queryKey: ['library-preferences'],
     queryFn: getLibraryPreferences,
+    enabled: Boolean(token),
     retry: false,
   });
+
+  useEffect(() => {
+    if (
+      preferencesQuery.error instanceof AxiosError &&
+      preferencesQuery.error.response?.status === 401
+    ) {
+      logout();
+      navigate('/login', { state: { from: location }, replace: true });
+    }
+  }, [preferencesQuery.error, logout, navigate, location]);
 
   const sessionsQuery = useQuery({
     queryKey: ['auth-sessions', refreshToken],
     queryFn: () => getAuthSessions(refreshToken),
     enabled: activeTab === 'security' && Boolean(token),
   });
+
+  useEffect(() => {
+    if (
+      sessionsQuery.error instanceof AxiosError &&
+      sessionsQuery.error.response?.status === 401
+    ) {
+      logout();
+      navigate('/login', { state: { from: location }, replace: true });
+    }
+  }, [sessionsQuery.error, logout, navigate, location]);
 
   useEffect(() => {
     if (!successMessage) return;
@@ -167,10 +204,17 @@ export const Settings = () => {
     mutationFn: updateLibraryPreferences,
     onSuccess: (updatedPreferences) => {
       setPreferences(updatedPreferences);
+      queryClient.setQueryData(['library-preferences'], updatedPreferences);
       setErrorMessage(null);
       setSuccessMessage('Library preferences saved successfully.');
     },
     onError: (error) => {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        logout();
+        navigate('/login', { state: { from: location }, replace: true });
+        return;
+      }
+
       setErrorMessage(getErrorMessage(error, 'Unable to save library preferences.'));
     },
   });
@@ -192,8 +236,21 @@ export const Settings = () => {
     },
   });
 
+  const handleUnauthorized = (error: unknown) => {
+    if (error instanceof AxiosError && error.response?.status === 401) {
+      logout();
+      navigate('/login', { state: { from: location }, replace: true });
+      return true;
+    }
+
+    return false;
+  };
+
   const revokeSessionMutation = useMutation({
     mutationFn: revokeAuthSession,
+    onMutate: (sessionId) => {
+      setRevokingSessionId(sessionId);
+    },
     onSuccess: (_, sessionId) => {
       const revokedSession = sessionsQuery.data?.find((session) => session.id === sessionId);
 
@@ -208,22 +265,41 @@ export const Settings = () => {
       queryClient.invalidateQueries({ queryKey: ['auth-sessions'] });
     },
     onError: (error) => {
+      if (handleUnauthorized(error)) return;
+
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        setErrorMessage('Session not found or already revoked.');
+        queryClient.invalidateQueries({ queryKey: ['auth-sessions'] });
+        return;
+      }
+
+      if (error instanceof AxiosError && error.response?.status === 500) {
+        setErrorMessage('Something went wrong. Please try again.');
+        return;
+      }
+
       setErrorMessage(getErrorMessage(error, 'Unable to revoke session.'));
+    },
+    onSettled: () => {
+      setRevokingSessionId(null);
     },
   });
 
   const revokeOtherSessionsMutation = useMutation({
     mutationFn: revokeOtherAuthSessions,
-    onSuccess: ({ revokedCount }) => {
+    onSuccess: () => {
       setErrorMessage(null);
-      setSuccessMessage(
-        revokedCount > 0
-          ? `Signed out of ${revokedCount} other session${revokedCount === 1 ? '' : 's'}.`
-          : 'No other active sessions to revoke.'
-      );
+      setSuccessMessage('Signed out other sessions.');
       queryClient.invalidateQueries({ queryKey: ['auth-sessions'] });
     },
     onError: (error) => {
+      if (handleUnauthorized(error)) return;
+
+      if (error instanceof AxiosError && error.response?.status === 500) {
+        setErrorMessage('Something went wrong. Please try again.');
+        return;
+      }
+
       setErrorMessage(getErrorMessage(error, 'Unable to revoke other sessions.'));
     },
   });
@@ -235,16 +311,45 @@ export const Settings = () => {
       name: currentProfile.name,
       email: currentProfile.email,
       phone: currentProfile.phone,
-      avatarUrl: currentProfile.avatarUrl,
+      avatarUrl: resolveProfileAvatarUrl(
+        profile.avatarUrl,
+        profileQuery.data?.avatarUrl,
+        authUser?.avatarUrl
+      ),
     });
   };
 
   const handlePreferencesSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    preferencesMutation.mutate({
+
+    const currentPreferences = {
       ...defaultLibraryPreferences,
       ...preferencesQuery.data,
       ...preferences,
+    };
+
+    const { loanPeriodDays, finePerDay, maxReservationsPerMember } = currentPreferences;
+
+    if (!Number.isFinite(loanPeriodDays) || loanPeriodDays < 1) {
+      setErrorMessage('Loan period must be at least 1 day.');
+      return;
+    }
+
+    if (!Number.isFinite(finePerDay) || finePerDay < 0) {
+      setErrorMessage('Fine per day must be 0 or greater.');
+      return;
+    }
+
+    if (!Number.isFinite(maxReservationsPerMember) || maxReservationsPerMember < 0) {
+      setErrorMessage('Max reservations per member must be 0 or greater.');
+      return;
+    }
+
+    setErrorMessage(null);
+    preferencesMutation.mutate({
+      loanPeriodDays,
+      finePerDay,
+      maxReservationsPerMember,
     });
   };
 
@@ -291,7 +396,8 @@ export const Settings = () => {
   };
 
   const renderSessionRow = (session: AuthSession) => {
-    const SessionIcon = session.current ? Monitor : Smartphone;
+    const SessionIcon = getSessionDeviceIcon(session.deviceLabel);
+    const isRevoking = revokingSessionId === session.id;
 
     return (
       <div
@@ -309,10 +415,13 @@ export const Settings = () => {
               </p>
               {session.current && (
                 <span className="rounded-full bg-amber-gold/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-gold">
-                  Current
+                  CURRENT
                 </span>
               )}
             </div>
+            {session.deviceLabel && (
+              <p className="mt-1 text-[13px] text-gray-600">{session.deviceLabel}</p>
+            )}
             <p className="mt-1 text-[12px] text-gray-500">
               Last used {formatSessionDate(session.lastUsedAt)}
             </p>
@@ -327,10 +436,10 @@ export const Settings = () => {
           <button
             type="button"
             onClick={() => revokeSessionMutation.mutate(session.id)}
-            disabled={revokeSessionMutation.isPending}
+            disabled={isRevoking}
             className="rounded-full border border-red-200 px-4 py-2 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-70"
           >
-            Sign out
+            {isRevoking ? 'Signing out...' : 'Sign out'}
           </button>
         )}
       </div>
@@ -339,6 +448,12 @@ export const Settings = () => {
 
   const renderContent = () => {
     const currentProfile = { ...defaultProfile, ...profileQuery.data, ...profile };
+    const profileAvatarUrl = resolveProfileAvatarUrl(
+      profile.avatarUrl,
+      profileQuery.data?.avatarUrl,
+      authUser?.avatarUrl
+    );
+    const profileInitial = (currentProfile.name || authUser?.name || 'A').charAt(0).toUpperCase();
     const currentPreferences = {
       ...defaultLibraryPreferences,
       ...preferencesQuery.data,
@@ -351,11 +466,17 @@ export const Settings = () => {
           <form onSubmit={handleProfileSubmit} className="space-y-6">
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
               <div className="relative">
-                <img
-                  src={currentProfile.avatarUrl || defaultProfile.avatarUrl}
-                  alt={currentProfile.name}
-                  className="h-20 w-20 rounded-full object-cover"
-                />
+                {profileAvatarUrl ? (
+                  <img
+                    src={profileAvatarUrl}
+                    alt={currentProfile.name}
+                    className="h-20 w-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-gold/15 text-[24px] font-semibold text-amber-gold">
+                    {profileInitial}
+                  </div>
+                )}
                 {avatarUploadMutation.isPending && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-[11px] font-semibold text-white">
                     Uploading...
@@ -452,6 +573,20 @@ export const Settings = () => {
               </p>
             </div>
 
+            {preferencesQuery.isLoading && (
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
+                Loading library preferences...
+              </div>
+            )}
+
+            {preferencesQuery.isError && (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-600">
+                {getErrorMessage(preferencesQuery.error, 'Unable to load library preferences.')}
+              </div>
+            )}
+
+            {preferencesQuery.isSuccess && (
+              <>
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-gray-500">
@@ -518,6 +653,8 @@ export const Settings = () => {
                 {preferencesMutation.isPending ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
+              </>
+            )}
           </form>
         );
 
@@ -664,7 +801,7 @@ export const Settings = () => {
         </aside>
 
         <section className="p-4 sm:p-6 lg:p-8">
-          {(profileQuery.isLoading || preferencesQuery.isLoading) && (
+          {(profileQuery.isLoading && activeTab === 'profile') && (
             <div className="mb-5 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-500">
               Loading saved settings...
             </div>

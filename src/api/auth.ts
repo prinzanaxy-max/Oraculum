@@ -97,6 +97,9 @@ export interface AuthSession {
   lastUsedAt: string;
   expiresAt: string;
   current: boolean;
+  deviceLabel?: string;
+  userAgent?: string;
+  ipAddress?: string;
 }
 
 export interface SessionsResponse {
