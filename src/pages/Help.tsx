@@ -1,9 +1,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, Mail, Phone, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { sendSupportMessage } from '../api/support';
+import { useAuthStore } from '../store/authStore';
 
 const faqs = [
   {
@@ -46,13 +48,32 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const mapValidationError = (message: string) => {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes('subject')) {
+    return { field: 'subject' as const, message };
+  }
+
+  if (normalized.includes('message')) {
+    return { field: 'message' as const, message };
+  }
+
+  return { field: undefined, message };
+};
+
 export const Help = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const logout = useAuthStore((state) => state.logout);
+
   const [search, setSearch] = useState('');
   const [openQuestion, setOpenQuestion] = useState<string | null>(faqs[0].question);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ subject?: string; message?: string }>({});
 
   const filteredFaqs = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -66,18 +87,52 @@ export const Help = () => {
     onSuccess: () => {
       setSuccess(true);
       setErrorMessage(null);
+      setFieldErrors({});
       setSubject('');
       setMessage('');
     },
     onError: (error) => {
-      setErrorMessage(getErrorMessage(error, 'Unable to send your message. Please try again.'));
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        logout();
+        navigate('/login', { state: { from: location }, replace: true });
+        return;
+      }
+
+      const message = getErrorMessage(error, 'Unable to send your message. Please try again.');
+
+      if (error instanceof AxiosError && error.response?.status === 400) {
+        const mapped = mapValidationError(message);
+
+        if (mapped.field) {
+          setFieldErrors({ [mapped.field]: mapped.message });
+          setErrorMessage(null);
+          return;
+        }
+      }
+
+      setFieldErrors({});
+      setErrorMessage(message);
     },
   });
+
+  const trimmedSubject = subject.trim();
+  const trimmedMessage = message.trim();
+  const canSubmit = Boolean(trimmedSubject && trimmedMessage) && !contactMutation.isPending;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(null);
-    contactMutation.mutate({ subject, message });
+    setFieldErrors({});
+
+    if (!trimmedSubject || !trimmedMessage) {
+      setFieldErrors({
+        subject: !trimmedSubject ? 'Subject is required' : undefined,
+        message: !trimmedMessage ? 'Message is required' : undefined,
+      });
+      return;
+    }
+
+    contactMutation.mutate({ subject: trimmedSubject, message: trimmedMessage });
   };
 
   return (
@@ -161,9 +216,8 @@ export const Help = () => {
 
           {success ? (
             <div className="mt-6 rounded-xl border border-amber-gold/20 bg-amber-gold/10 px-4 py-5">
-              <p className="text-[15px] font-semibold text-charcoal">Message sent</p>
-              <p className="mt-1 text-[13px] text-gray-600">
-                Thanks for reaching out. We will get back to you soon.
+              <p className="text-[15px] font-semibold text-charcoal">
+                Message sent. Our support team will respond within 24 hours.
               </p>
               <button
                 type="button"
@@ -182,10 +236,24 @@ export const Help = () => {
                 <input
                   required
                   value={subject}
-                  onChange={(event) => setSubject(event.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
+                  onChange={(event) => {
+                    setSubject(event.target.value);
+                    if (fieldErrors.subject) {
+                      setFieldErrors((current) => ({ ...current, subject: undefined }));
+                    }
+                  }}
+                  aria-invalid={Boolean(fieldErrors.subject)}
+                  className={clsx(
+                    'w-full rounded-xl border px-4 py-3 text-[14px] outline-none transition-all focus:ring-2 focus:ring-amber-gold/15',
+                    fieldErrors.subject
+                      ? 'border-red-300 focus:border-red-400'
+                      : 'border-gray-200 focus:border-amber-gold'
+                  )}
                   placeholder="What can we help with?"
                 />
+                {fieldErrors.subject && (
+                  <p className="mt-2 text-[13px] font-medium text-red-600">{fieldErrors.subject}</p>
+                )}
               </label>
 
               <label className="block">
@@ -195,16 +263,30 @@ export const Help = () => {
                 <textarea
                   required
                   value={message}
-                  onChange={(event) => setMessage(event.target.value)}
+                  onChange={(event) => {
+                    setMessage(event.target.value);
+                    if (fieldErrors.message) {
+                      setFieldErrors((current) => ({ ...current, message: undefined }));
+                    }
+                  }}
+                  aria-invalid={Boolean(fieldErrors.message)}
                   rows={6}
-                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-[14px] outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
+                  className={clsx(
+                    'w-full resize-none rounded-xl border px-4 py-3 text-[14px] outline-none transition-all focus:ring-2 focus:ring-amber-gold/15',
+                    fieldErrors.message
+                      ? 'border-red-300 focus:border-red-400'
+                      : 'border-gray-200 focus:border-amber-gold'
+                  )}
                   placeholder="Tell us what happened..."
                 />
+                {fieldErrors.message && (
+                  <p className="mt-2 text-[13px] font-medium text-red-600">{fieldErrors.message}</p>
+                )}
               </label>
 
               <button
                 type="submit"
-                disabled={contactMutation.isPending}
+                disabled={!canSubmit}
                 className="w-full rounded-full bg-amber-gold px-5 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-amber-gold/90 disabled:opacity-70"
               >
                 {contactMutation.isPending ? 'Sending...' : 'Send Message'}
