@@ -4,9 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { Camera } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useCurrentAdminProfile } from '../hooks/useCurrentAdminProfile';
 import {
   changePassword,
-  getCurrentAdmin,
   toAdminProfile,
   updateCurrentAdmin,
   uploadProfilePicture,
@@ -93,11 +93,7 @@ export const Settings = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const profileQuery = useQuery({
-    queryKey: ['current-admin'],
-    queryFn: getCurrentAdmin,
-    retry: false,
-  });
+  const profileQuery = useCurrentAdminProfile();
 
   const preferencesQuery = useQuery({
     queryKey: ['library-preferences'],

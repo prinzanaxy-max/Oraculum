@@ -2,6 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
+import { useCurrentAdminProfile } from '../hooks/useCurrentAdminProfile';
 import {
   LayoutDashboard,
   Users,
@@ -46,6 +47,7 @@ export interface AdminOutletContext {
 
 export const AdminLayout = () => {
   const { logout, user } = useAuthStore();
+  const profileQuery = useCurrentAdminProfile();
   const { appliedTheme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -55,7 +57,9 @@ export const AdminLayout = () => {
   const isCheckoutPage = location.pathname === '/checkout';
   const profileName = user?.name ?? 'Admin';
   const profileAvatar =
-    user?.avatarUrl ?? `https://i.pravatar.cc/150?u=${encodeURIComponent(user?.email ?? profileName)}`;
+    profileQuery.data?.avatarUrl ??
+    user?.avatarUrl ??
+    `https://i.pravatar.cc/150?u=${encodeURIComponent(user?.email ?? profileName)}`;
 
   const handleLogout = () => {
     logout();

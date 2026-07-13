@@ -11,6 +11,7 @@ export interface RefreshSessionResponse {
     id: string;
     name: string;
     email: string;
+    avatarUrl?: string;
   };
 }
 
@@ -35,7 +36,17 @@ export const refreshSession = async (): Promise<string> => {
   }
 
   const currentUser = useAuthStore.getState().user;
-  useAuthStore.getState().setAuth(token, data.user ?? currentUser, data.refreshToken);
+  useAuthStore.getState().setAuth(
+    token,
+    data.user
+      ? {
+          ...currentUser,
+          ...data.user,
+          avatarUrl: data.user.avatarUrl ?? currentUser?.avatarUrl,
+        }
+      : currentUser,
+    data.refreshToken
+  );
 
   return token;
 };
