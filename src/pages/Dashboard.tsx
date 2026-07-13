@@ -105,7 +105,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const appliedTheme = useThemeStore((state) => state.appliedTheme);
   const [activeTab, setActiveTab] = useState<'top' | 'new'>('top');
-  const [range, setRange] = useState<DashboardRange>('last_6_months');
+  const [range, setRange] = useState<DashboardRange>('last_30_days');
 
   const statsQuery = useQuery({
     queryKey: ['dashboard-stats', range],
