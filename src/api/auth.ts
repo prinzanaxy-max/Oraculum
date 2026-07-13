@@ -41,6 +41,28 @@ export interface RegisterPayload {
   confirmPassword: string;
 }
 
+export interface AvatarUploadUser {
+  id: string;
+  name: string;
+  fullName?: string;
+  email: string;
+  phone: string | null;
+  avatarUrl: string;
+}
+
+export interface AvatarUploadResponse {
+  avatarUrl: string;
+  user: AvatarUploadUser;
+}
+
+export const toAdminProfile = (user: AvatarUploadUser): AdminProfile => ({
+  id: user.id,
+  name: user.name || user.fullName || user.email,
+  email: user.email,
+  phone: user.phone ?? undefined,
+  avatarUrl: user.avatarUrl,
+});
+
 export const getCurrentAdmin = async (): Promise<AdminProfile> => {
   const response = await api.get<AdminProfile>('/auth/me');
   return response.data;
@@ -50,6 +72,14 @@ export const updateCurrentAdmin = async (
   payload: Omit<AdminProfile, 'id'>
 ): Promise<AdminProfile> => {
   const response = await api.put<AdminProfile>('/auth/me', payload);
+  return response.data;
+};
+
+export const uploadProfilePicture = async (file: File): Promise<AvatarUploadResponse> => {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await api.post<AvatarUploadResponse>('/auth/me/avatar', formData);
   return response.data;
 };
 

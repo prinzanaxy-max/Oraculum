@@ -54,7 +54,8 @@ export const AdminLayout = () => {
   const [checkoutSearchFields, setCheckoutSearchFields] = useState<string[]>(['title', 'author']);
   const isCheckoutPage = location.pathname === '/checkout';
   const profileName = user?.name ?? 'Admin';
-  const profileAvatar = `https://i.pravatar.cc/150?u=${encodeURIComponent(user?.email ?? profileName)}`;
+  const profileAvatar =
+    user?.avatarUrl ?? `https://i.pravatar.cc/150?u=${encodeURIComponent(user?.email ?? profileName)}`;
 
   const handleLogout = () => {
     logout();

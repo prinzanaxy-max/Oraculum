@@ -1,12 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AxiosError } from 'axios';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
+import { Camera } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import {
   changePassword,
   getCurrentAdmin,
+  toAdminProfile,
   updateCurrentAdmin,
+  uploadProfilePicture,
   type AdminProfile,
   type ChangePasswordPayload,
 } from '../api/auth';
@@ -24,6 +27,8 @@ const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: 'library', label: 'Library Preferences' },
   { id: 'security', label: 'Security' },
 ];
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 
 const defaultProfile: AdminProfile = {
   id: 'local-admin',
@@ -72,9 +77,11 @@ const Toggle = ({
 );
 
 export const Settings = () => {
+  const queryClient = useQueryClient();
   const setAuth = useAuthStore((state) => state.setAuth);
   const token = useAuthStore((state) => state.token);
   const refreshToken = useAuthStore((state) => state.refreshToken);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [profile, setProfile] = useState<Partial<AdminProfile>>({});
   const [preferences, setPreferences] = useState<Partial<LibraryPreferences>>({});
@@ -119,6 +126,55 @@ export const Settings = () => {
       setErrorMessage(getErrorMessage(error, 'Unable to save profile changes.'));
     },
   });
+
+  const avatarUploadMutation = useMutation({
+    mutationFn: uploadProfilePicture,
+    onSuccess: (response) => {
+      const updatedProfile = toAdminProfile(response.user);
+      setProfile(updatedProfile);
+      if (token) {
+        setAuth(token, updatedProfile, refreshToken ?? undefined);
+      }
+      queryClient.setQueryData(['current-admin'], updatedProfile);
+      setErrorMessage(null);
+      setSuccessMessage('Profile picture updated.');
+    },
+    onError: (error) => {
+      setErrorMessage(getErrorMessage(error, 'Failed to upload profile picture.'));
+    },
+  });
+
+  const validateAvatarFile = (file: File | undefined): string | null => {
+    if (!file) {
+      return 'Please select an image to upload.';
+    }
+
+    if (!file.type.startsWith('image/')) {
+      return 'Please select a valid image file.';
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      return 'Image must be 5MB or smaller.';
+    }
+
+    return null;
+  };
+
+  const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    const validationError = validateAvatarFile(file);
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    if (!file) return;
+
+    setErrorMessage(null);
+    avatarUploadMutation.mutate(file);
+  };
 
   const preferencesMutation = useMutation({
     mutationFn: updateLibraryPreferences,
@@ -199,10 +255,32 @@ export const Settings = () => {
                   alt={currentProfile.name}
                   className="h-20 w-20 rounded-full object-cover"
                 />
+                {avatarUploadMutation.isPending && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-[11px] font-semibold text-white">
+                    Uploading...
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploadMutation.isPending}
+                  className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-amber-gold text-white shadow-sm transition-colors hover:bg-amber-gold/90 disabled:opacity-70"
+                  aria-label="Upload profile picture"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
               </div>
               <div>
                 <h2 className="text-[18px] font-bold text-charcoal">Profile</h2>
                 <p className="mt-1 text-[13px] text-gray-500">Update your visible admin details.</p>
+                <p className="mt-2 text-[12px] text-gray-400">PNG, JPG, or GIF up to 5MB.</p>
               </div>
             </div>
 
