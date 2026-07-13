@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import { Camera } from 'lucide-react';
+import { Camera, Monitor, Smartphone } from 'lucide-react';
+import { format } from 'date-fns';
 import { useAuthStore } from '../store/authStore';
 import { useCurrentAdminProfile } from '../hooks/useCurrentAdminProfile';
 import {
   changePassword,
+  getAuthSessions,
+  revokeAuthSession,
+  revokeOtherAuthSessions,
   toAdminProfile,
   updateCurrentAdmin,
   uploadProfilePicture,
   type AdminProfile,
+  type AuthSession,
   type ChangePasswordPayload,
 } from '../api/auth';
 import {
@@ -29,6 +35,8 @@ const tabs: Array<{ id: SettingsTab; label: string }> = [
 ];
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+
+const formatSessionDate = (value: string) => format(new Date(value), 'MMM d, yyyy h:mm a');
 
 const defaultProfile: AdminProfile = {
   id: 'local-admin',
@@ -51,33 +59,10 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-const Toggle = ({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) => (
-  <button
-    type="button"
-    onClick={() => onChange(!checked)}
-    className={clsx(
-      'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors',
-      checked ? 'bg-amber-gold' : 'bg-gray-200'
-    )}
-    aria-pressed={checked}
-  >
-    <span
-      className={clsx(
-        'absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-        checked ? 'translate-x-6' : 'translate-x-1'
-      )}
-    />
-  </button>
-);
-
 export const Settings = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const logout = useAuthStore((state) => state.logout);
   const setAuth = useAuthStore((state) => state.setAuth);
   const token = useAuthStore((state) => state.token);
   const refreshToken = useAuthStore((state) => state.refreshToken);
@@ -99,6 +84,12 @@ export const Settings = () => {
     queryKey: ['library-preferences'],
     queryFn: getLibraryPreferences,
     retry: false,
+  });
+
+  const sessionsQuery = useQuery({
+    queryKey: ['auth-sessions', refreshToken],
+    queryFn: () => getAuthSessions(refreshToken),
+    enabled: activeTab === 'security' && Boolean(token),
   });
 
   useEffect(() => {
@@ -189,10 +180,51 @@ export const Settings = () => {
     onSuccess: () => {
       setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setErrorMessage(null);
-      setSuccessMessage('Password updated successfully.');
+      setSuccessMessage('Password changed successfully.');
     },
     onError: (error) => {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        setErrorMessage('Current password is incorrect.');
+        return;
+      }
+
       setErrorMessage(getErrorMessage(error, 'Unable to update password.'));
+    },
+  });
+
+  const revokeSessionMutation = useMutation({
+    mutationFn: revokeAuthSession,
+    onSuccess: (_, sessionId) => {
+      const revokedSession = sessionsQuery.data?.find((session) => session.id === sessionId);
+
+      if (revokedSession?.current) {
+        logout();
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      setErrorMessage(null);
+      setSuccessMessage('Session revoked.');
+      queryClient.invalidateQueries({ queryKey: ['auth-sessions'] });
+    },
+    onError: (error) => {
+      setErrorMessage(getErrorMessage(error, 'Unable to revoke session.'));
+    },
+  });
+
+  const revokeOtherSessionsMutation = useMutation({
+    mutationFn: revokeOtherAuthSessions,
+    onSuccess: ({ revokedCount }) => {
+      setErrorMessage(null);
+      setSuccessMessage(
+        revokedCount > 0
+          ? `Signed out of ${revokedCount} other session${revokedCount === 1 ? '' : 's'}.`
+          : 'No other active sessions to revoke.'
+      );
+      queryClient.invalidateQueries({ queryKey: ['auth-sessions'] });
+    },
+    onError: (error) => {
+      setErrorMessage(getErrorMessage(error, 'Unable to revoke other sessions.'));
     },
   });
 
@@ -219,17 +251,90 @@ export const Settings = () => {
   const handlePasswordSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (!passwords.currentPassword.trim()) {
+      setErrorMessage('Current password is required.');
+      return;
+    }
+
+    if (!passwords.newPassword.trim()) {
+      setErrorMessage('New password is required.');
+      return;
+    }
+
     if (passwords.newPassword.length < 8) {
-      setErrorMessage('New password must be at least 8 characters.');
+      setErrorMessage('New password must be at least 8 characters long.');
+      return;
+    }
+
+    if (!passwords.confirmPassword.trim()) {
+      setErrorMessage('Please confirm your new password.');
       return;
     }
 
     if (passwords.newPassword !== passwords.confirmPassword) {
-      setErrorMessage('New password and confirmation do not match.');
+      setErrorMessage("Passwords don't match.");
       return;
     }
 
+    setErrorMessage(null);
     passwordMutation.mutate(passwords);
+  };
+
+  const handleRevokeOtherSessions = () => {
+    if (!refreshToken) {
+      setErrorMessage('Unable to identify the current session. Please sign in again.');
+      return;
+    }
+
+    setErrorMessage(null);
+    revokeOtherSessionsMutation.mutate(refreshToken);
+  };
+
+  const renderSessionRow = (session: AuthSession) => {
+    const SessionIcon = session.current ? Monitor : Smartphone;
+
+    return (
+      <div
+        key={session.id}
+        className="flex flex-col gap-3 rounded-xl border border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+            <SessionIcon className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[14px] font-semibold text-charcoal">
+                {session.current ? 'Current session' : 'Active session'}
+              </p>
+              {session.current && (
+                <span className="rounded-full bg-amber-gold/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-gold">
+                  Current
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-[12px] text-gray-500">
+              Last used {formatSessionDate(session.lastUsedAt)}
+            </p>
+            <p className="text-[12px] text-gray-400">
+              Created {formatSessionDate(session.createdAt)} · Expires{' '}
+              {formatSessionDate(session.expiresAt)}
+            </p>
+          </div>
+        </div>
+
+        {!session.current && (
+          <button
+            type="button"
+            onClick={() => revokeSessionMutation.mutate(session.id)}
+            disabled={revokeSessionMutation.isPending}
+            className="rounded-full border border-red-200 px-4 py-2 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-70"
+          >
+            Sign out
+          </button>
+        )}
+      </div>
+    );
   };
 
   const renderContent = () => {
@@ -343,7 +448,7 @@ export const Settings = () => {
             <div>
               <h2 className="text-[18px] font-bold text-charcoal">Library Preferences</h2>
               <p className="mt-1 text-[13px] text-gray-500">
-                Configure loan rules and overdue notifications.
+                Configure loan rules and reservation limits.
               </p>
             </div>
 
@@ -402,21 +507,6 @@ export const Settings = () => {
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
                 />
               </label>
-
-              <div className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3">
-                <div>
-                  <p className="text-[14px] font-semibold text-charcoal">Auto-notify on overdue</p>
-                  <p className="mt-1 text-[12px] text-gray-500">
-                    Send reminders when loans expire.
-                  </p>
-                </div>
-                <Toggle
-                  checked={currentPreferences.autoNotifyOverdue}
-                  onChange={(checked) =>
-                    setPreferences((current) => ({ ...current, autoNotifyOverdue: checked }))
-                  }
-                />
-              </div>
             </div>
 
             <div className="flex justify-end">
@@ -476,9 +566,53 @@ export const Settings = () => {
               </div>
             </form>
 
-            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
-              Active session management will appear here once the backend exposes session endpoints.
-            </div>
+            <section className="space-y-4 border-t border-gray-100 pt-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-[18px] font-bold text-charcoal">Active Sessions</h2>
+                  <p className="mt-1 text-[13px] text-gray-500">
+                    Review devices signed in to your account and sign out sessions you no longer
+                    recognize.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRevokeOtherSessions}
+                  disabled={
+                    revokeOtherSessionsMutation.isPending ||
+                    !refreshToken ||
+                    (sessionsQuery.data?.filter((session) => !session.current).length ?? 0) === 0
+                  }
+                  className="rounded-full border border-gray-200 px-4 py-2.5 text-[13px] font-semibold text-charcoal transition-colors hover:bg-gray-50 disabled:opacity-70"
+                >
+                  {revokeOtherSessionsMutation.isPending
+                    ? 'Signing out...'
+                    : 'Sign out all other sessions'}
+                </button>
+              </div>
+
+              {sessionsQuery.isLoading && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
+                  Loading active sessions...
+                </div>
+              )}
+
+              {sessionsQuery.isError && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-600">
+                  {getErrorMessage(sessionsQuery.error, 'Unable to load active sessions.')}
+                </div>
+              )}
+
+              {sessionsQuery.isSuccess && sessionsQuery.data.length === 0 && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
+                  No active sessions found.
+                </div>
+              )}
+
+              {sessionsQuery.isSuccess && sessionsQuery.data.length > 0 && (
+                <div className="space-y-3">{sessionsQuery.data.map(renderSessionRow)}</div>
+              )}
+            </section>
           </div>
         );
     }

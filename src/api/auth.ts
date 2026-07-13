@@ -84,7 +84,48 @@ export const uploadProfilePicture = async (file: File): Promise<AvatarUploadResp
 };
 
 export const changePassword = async (payload: ChangePasswordPayload): Promise<void> => {
-  await api.put('/auth/change-password', payload);
+  await api.put('/auth/change-password', {
+    currentPassword: payload.currentPassword,
+    newPassword: payload.newPassword,
+    confirmNewPassword: payload.confirmPassword,
+  });
+};
+
+export interface AuthSession {
+  id: string;
+  createdAt: string;
+  lastUsedAt: string;
+  expiresAt: string;
+  current: boolean;
+}
+
+export interface SessionsResponse {
+  sessions: AuthSession[];
+}
+
+export const getAuthSessions = async (refreshToken?: string | null): Promise<AuthSession[]> => {
+  const headers: Record<string, string> = {};
+
+  if (refreshToken) {
+    headers['X-Refresh-Token'] = refreshToken;
+  }
+
+  const response = await api.get<SessionsResponse>('/auth/sessions', { headers });
+  return response.data.sessions;
+};
+
+export const revokeAuthSession = async (sessionId: string): Promise<void> => {
+  await api.delete(`/auth/sessions/${sessionId}`);
+};
+
+export const revokeOtherAuthSessions = async (
+  refreshToken: string
+): Promise<{ revokedCount: number }> => {
+  const response = await api.delete<{ message: string; revokedCount: number }>('/auth/sessions', {
+    data: { refreshToken },
+  });
+
+  return { revokedCount: response.data.revokedCount };
 };
 
 export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
