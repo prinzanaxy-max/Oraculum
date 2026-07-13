@@ -42,7 +42,6 @@ const checkoutFilterOptions = [
 
 export interface AdminOutletContext {
   checkoutSearchFields: string[];
-  globalSearch: string;
 }
 
 export const AdminLayout = () => {
@@ -53,9 +52,7 @@ export const AdminLayout = () => {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [checkoutSearchFields, setCheckoutSearchFields] = useState<string[]>(['title', 'author']);
-  const [globalSearch, setGlobalSearch] = useState('');
   const isCheckoutPage = location.pathname === '/checkout';
-  const isMembersPage = location.pathname === '/members';
   const profileName = user?.name ?? 'Admin';
   const profileAvatar = `https://i.pravatar.cc/150?u=${encodeURIComponent(user?.email ?? profileName)}`;
 
@@ -274,17 +271,6 @@ export const AdminLayout = () => {
                   </div>
                 )}
               </div>
-            ) : isMembersPage ? (
-              <>
-                <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 stroke-[1.5]" />
-                <input
-                  type="text"
-                  value={globalSearch}
-                  onChange={(event) => setGlobalSearch(event.target.value)}
-                  placeholder="Search member name, email, or ID"
-                  className="w-full pl-11 pr-10 py-2.5 bg-gray-50 border-none rounded-full text-[14px] focus:ring-2 focus:ring-amber-gold/20 focus:bg-white transition-all outline-none text-charcoal placeholder:text-gray-400"
-                />
-              </>
             ) : (
               <div className="hidden lg:block" />
             )}
@@ -322,7 +308,7 @@ export const AdminLayout = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <Outlet context={{ checkoutSearchFields, globalSearch } satisfies AdminOutletContext} />
+          <Outlet context={{ checkoutSearchFields } satisfies AdminOutletContext} />
         </main>
       </div>
     </div>

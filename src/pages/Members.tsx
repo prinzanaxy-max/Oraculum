@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useOutletContext } from 'react-router-dom';
-import { UserPlus, X } from 'lucide-react';
+import { Search, UserPlus, X } from 'lucide-react';
 import clsx from 'clsx';
 import { createMember, deleteMember, getMembers, updateMember } from '../api/members';
 import type { MemberPayload } from '../api/members';
 import { useDebounce } from '../hooks/useDebounce';
-import type { AdminOutletContext } from '../layouts/AdminLayout';
 import type { Member } from '../types';
 
 const emptyForm: MemberPayload = {
@@ -67,8 +65,8 @@ const Highlight = ({ value, query }: { value: string; query: string }) => {
 
 export const Members = () => {
   const queryClient = useQueryClient();
-  const { globalSearch } = useOutletContext<AdminOutletContext>();
-  const debouncedSearch = useDebounce(globalSearch.trim(), 300);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search.trim(), 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [form, setForm] = useState<MemberPayload>(emptyForm);
@@ -180,7 +178,19 @@ export const Members = () => {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center xl:w-auto">
+          <div className="relative w-full sm:w-[320px]">
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name, email, or member ID"
+              aria-label="Search members"
+              className="app-input w-full rounded-full border py-2.5 pl-4 pr-11 text-[14px] outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
+            />
+            <Search className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          </div>
+
           <button
             type="button"
             onClick={openAddModal}
