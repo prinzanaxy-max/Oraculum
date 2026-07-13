@@ -11,6 +11,7 @@ import {
   returnBorrowRecord,
 } from '../api/borrow';
 import { createReservation } from '../api/reservations';
+import { getLibraryPreferences } from '../api/settings';
 import { useDebounce } from '../hooks/useDebounce';
 import type { AdminOutletContext } from '../layouts/AdminLayout';
 import type { BorrowRecord } from '../types';
@@ -85,6 +86,8 @@ export const Borrow = () => {
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [checkoutTarget, setCheckoutTarget] = useState<BorrowRecord | null>(null);
   const [checkoutMemberId, setCheckoutMemberId] = useState('');
+  const [reserveTarget, setReserveTarget] = useState<BorrowRecord | null>(null);
+  const [reserveMemberId, setReserveMemberId] = useState('');
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const debouncedSearch = useDebounce(search.trim(), 300);
@@ -105,6 +108,11 @@ export const Borrow = () => {
       }),
   });
 
+  const { data: libraryPreferences } = useQuery({
+    queryKey: ['library-preferences'],
+    queryFn: getLibraryPreferences,
+  });
+
   const updateCachedRecord = (recordId: string, update: Partial<BorrowRecord>) => {
     queryClient.setQueryData<BorrowRecord[]>(queryKey, (current) =>
       current?.map((record) =>
@@ -121,9 +129,12 @@ export const Borrow = () => {
   const returnMutation = useMutation({
     mutationFn: async (record: BorrowRecord) => {
       const response = await returnBorrowRecord(record.id);
+      const finePerDay = libraryPreferences?.finePerDay ?? 0.5;
       return {
         id: record.id,
-        fine: response.fine ?? calculateFine(record.dueDate, new Date().toISOString()),
+        fine:
+          response.fine ??
+          calculateFine(record.dueDate, new Date().toISOString(), finePerDay),
       };
     },
     onSuccess: ({ id, fine }) => {
@@ -159,14 +170,16 @@ export const Borrow = () => {
   });
 
   const reserveMutation = useMutation({
-    mutationFn: (record: BorrowRecord) =>
+    mutationFn: (input: { record: BorrowRecord; memberId: string }) =>
       createReservation({
-        bookId: record.bookId,
-        memberId: record.memberId,
-      }).then(() => record),
+        bookId: input.record.bookId,
+        memberId: input.memberId,
+      }).then(() => input.record),
     onSuccess: (record) => {
       updateCachedRecord(record.id, { status: 'reserved' });
       queryClient.invalidateQueries({ queryKey: ['borrow-records'] });
+      setReserveTarget(null);
+      setReserveMemberId('');
       setActionError(null);
       setActionMessage('Book reserved successfully.');
     },
@@ -215,6 +228,13 @@ export const Borrow = () => {
     reserveMutation.isPending ||
     checkoutMutation.isPending;
 
+  const openReserveModal = (record: BorrowRecord) => {
+    setActionMessage(null);
+    setActionError(null);
+    setReserveTarget(record);
+    setReserveMemberId('');
+  };
+
   const renderActions = (record: BorrowRecord) => {
     if (record.status === 'borrowed') {
       return (
@@ -251,7 +271,7 @@ export const Borrow = () => {
             disabled={isActionPending}
             onClick={(event) => {
               event.stopPropagation();
-              reserveMutation.mutate(record);
+              openReserveModal(record);
             }}
             className="rounded-md bg-charcoal px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-charcoal/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -298,7 +318,7 @@ export const Borrow = () => {
             disabled={isActionPending}
             onClick={(event) => {
               event.stopPropagation();
-              reserveMutation.mutate(record);
+              openReserveModal(record);
             }}
             className="rounded-md bg-charcoal px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-charcoal/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -314,7 +334,7 @@ export const Borrow = () => {
         disabled={isActionPending}
         onClick={(event) => {
           event.stopPropagation();
-          reserveMutation.mutate(record);
+          openReserveModal(record);
         }}
         className="rounded-md bg-charcoal px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-charcoal/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
@@ -534,6 +554,78 @@ export const Borrow = () => {
                   className="inline-flex min-w-28 items-center justify-center rounded-full bg-amber-gold px-5 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-amber-gold/90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {checkoutMutation.isPending ? 'Checking out...' : 'Check Out'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {reserveTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-charcoal/40 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[calc(100dvh-4rem)] w-[min(100%,32rem)] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+            <div className="mb-6 flex items-start justify-between">
+              <div>
+                <h2 className="text-[20px] font-bold text-charcoal">Reserve Book</h2>
+                <p className="mt-1 text-[13px] text-gray-500">
+                  Enter the member ID for the reservation queue.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReserveTarget(null)}
+                className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-charcoal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+              <p className="text-[15px] font-semibold text-charcoal">{reserveTarget.title}</p>
+              <p className="mt-1 text-[13px] text-gray-500">
+                {reserveTarget.author} · ISBN {reserveTarget.isbn ?? 'N/A'}
+              </p>
+            </div>
+
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const memberId = reserveMemberId.trim();
+                if (!memberId) {
+                  setActionError('Member ID is required to reserve this book.');
+                  return;
+                }
+                reserveMutation.mutate({ record: reserveTarget, memberId });
+              }}
+              className="mt-5 space-y-5"
+            >
+              <label className="block">
+                <span className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-gray-500">
+                  Member ID
+                </span>
+                <input
+                  required
+                  value={reserveMemberId}
+                  onChange={(event) => setReserveMemberId(event.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] text-charcoal outline-none transition-all focus:border-amber-gold focus:ring-2 focus:ring-amber-gold/15"
+                  placeholder="Enter member ID"
+                />
+              </label>
+
+              <div className="flex justify-end gap-3 border-t border-gray-50 pt-5">
+                <button
+                  type="button"
+                  onClick={() => setReserveTarget(null)}
+                  className="rounded-full border border-gray-200 px-5 py-2.5 text-[14px] font-semibold text-gray-500 transition-colors hover:text-charcoal"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={reserveMutation.isPending}
+                  className="inline-flex min-w-28 items-center justify-center rounded-full bg-charcoal px-5 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-charcoal/90 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {reserveMutation.isPending ? 'Reserving...' : 'Reserve'}
                 </button>
               </div>
             </form>

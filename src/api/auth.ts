@@ -145,6 +145,24 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
   await api.post('/auth/forgot-password', { email });
 };
 
+export interface ResetPasswordPayload {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export const resetPassword = async (payload: ResetPasswordPayload): Promise<void> => {
+  await api.post('/auth/reset-password', {
+    token: payload.token,
+    password: payload.password,
+    confirmPassword: payload.confirmPassword,
+  });
+};
+
+export const logoutSession = async (refreshToken?: string | null): Promise<void> => {
+  await api.post('/auth/logout', refreshToken ? { refreshToken } : {});
+};
+
 export const signInWithGoogle = async (idToken: string): Promise<GoogleSignInResponse> => {
   const response = await api.post<GoogleSignInResponse>('/auth/google', { idToken });
   return response.data;

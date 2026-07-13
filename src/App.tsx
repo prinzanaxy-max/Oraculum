@@ -5,6 +5,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { AuthGuard } from './components/AuthGuard';
 import { Login } from './pages/Login';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Books } from './pages/Books';
 import { Members } from './pages/Members';
@@ -30,6 +31,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route
             path="/"

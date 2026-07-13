@@ -10,7 +10,15 @@ interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-const AUTH_ROUTES = ['/auth/login', '/auth/signup', '/auth/google', '/auth/refresh', '/auth/forgot-password'];
+const AUTH_ROUTES = [
+  '/auth/login',
+  '/auth/signup',
+  '/auth/google',
+  '/auth/refresh',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/logout',
+];
 
 const isAuthRoute = (url?: string) => {
   if (!url) return false;

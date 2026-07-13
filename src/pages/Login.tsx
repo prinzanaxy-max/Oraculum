@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AxiosError } from 'axios';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation, Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -113,6 +113,7 @@ const resolveToken = (response: { token?: string; accessToken?: string }) =>
 export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const token = useAuthStore((state) => state.token);
   const setAuth = useAuthStore((state) => state.setAuth);
   const { appliedTheme, toggleTheme } = useThemeStore();
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
@@ -256,6 +257,10 @@ export const Login = () => {
       isCancelled = true;
     };
   }, [activeTab, googleClientId, handleGoogleCredential]);
+
+  if (token) {
+    return <Navigate to={redirectTo} replace />;
+  }
 
   return (
     <main className="flex min-h-screen flex-col bg-background text-on-background selection:bg-secondary-container selection:text-on-secondary-container lg:flex-row">

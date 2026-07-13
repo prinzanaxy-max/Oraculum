@@ -52,13 +52,6 @@ const getSessionDeviceIcon = (deviceLabel?: string) => {
   }
 };
 
-const defaultProfile: Omit<AdminProfile, 'avatarUrl'> = {
-  id: 'local-admin',
-  name: 'Allison',
-  email: 'allison@oraculum.edu',
-  phone: '',
-};
-
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof AxiosError) {
     const data = error.response?.data as { message?: string } | undefined;
@@ -306,7 +299,9 @@ export const Settings = () => {
 
   const handleProfileSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const currentProfile = { ...defaultProfile, ...profileQuery.data, ...profile };
+    if (!profileQuery.data) return;
+
+    const currentProfile = { ...profileQuery.data, ...profile };
     profileMutation.mutate({
       name: currentProfile.name,
       email: currentProfile.email,
@@ -447,13 +442,6 @@ export const Settings = () => {
   };
 
   const renderContent = () => {
-    const currentProfile = { ...defaultProfile, ...profileQuery.data, ...profile };
-    const profileAvatarUrl = resolveProfileAvatarUrl(
-      profile.avatarUrl,
-      profileQuery.data?.avatarUrl,
-      authUser?.avatarUrl
-    );
-    const profileInitial = (currentProfile.name || authUser?.name || 'A').charAt(0).toUpperCase();
     const currentPreferences = {
       ...defaultLibraryPreferences,
       ...preferencesQuery.data,
@@ -461,7 +449,35 @@ export const Settings = () => {
     };
 
     switch (activeTab) {
-      case 'profile':
+      case 'profile': {
+        if (profileQuery.isLoading) {
+          return (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
+              Loading profile...
+            </div>
+          );
+        }
+
+        if (profileQuery.isError) {
+          return (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-600">
+              {getErrorMessage(profileQuery.error, 'Unable to load profile.')}
+            </div>
+          );
+        }
+
+        if (!profileQuery.data) {
+          return null;
+        }
+
+        const currentProfile = { ...profileQuery.data, ...profile };
+        const profileAvatarUrl = resolveProfileAvatarUrl(
+          profile.avatarUrl,
+          profileQuery.data.avatarUrl,
+          authUser?.avatarUrl
+        );
+        const profileInitial = (currentProfile.name || authUser?.name || 'A').charAt(0).toUpperCase();
+
         return (
           <form onSubmit={handleProfileSubmit} className="space-y-6">
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
@@ -562,6 +578,7 @@ export const Settings = () => {
             </div>
           </form>
         );
+      }
 
       case 'library':
         return (
@@ -801,11 +818,6 @@ export const Settings = () => {
         </aside>
 
         <section className="p-4 sm:p-6 lg:p-8">
-          {(profileQuery.isLoading && activeTab === 'profile') && (
-            <div className="mb-5 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-              Loading saved settings...
-            </div>
-          )}
           {renderContent()}
         </section>
       </div>

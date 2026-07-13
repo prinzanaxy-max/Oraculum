@@ -2,6 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
+import { logoutSession } from '../api/auth';
 import { useCurrentAdminProfile } from '../hooks/useCurrentAdminProfile';
 import { resolveProfileAvatarUrl } from '../utils/profileAvatar';
 import {
@@ -47,11 +48,12 @@ export interface AdminOutletContext {
 }
 
 export const AdminLayout = () => {
-  const { logout, user } = useAuthStore();
+  const { logout, user, refreshToken } = useAuthStore();
   const profileQuery = useCurrentAdminProfile();
   const { appliedTheme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [checkoutSearchFields, setCheckoutSearchFields] = useState<string[]>(['title', 'author']);
@@ -60,9 +62,18 @@ export const AdminLayout = () => {
   const profileAvatar = resolveProfileAvatarUrl(profileQuery.data?.avatarUrl, user?.avatarUrl);
   const profileInitial = profileName.charAt(0).toUpperCase();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      await logoutSession(refreshToken);
+    } catch {
+      // Clear local auth even if the server logout fails.
+    } finally {
+      logout();
+      navigate('/login');
+      setIsLoggingOut(false);
+    }
   };
 
   const toggleCheckoutFilter = (value: string) => {
@@ -104,7 +115,8 @@ export const AdminLayout = () => {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-red-500 transition-colors hover:bg-red-50"
+          disabled={isLoggingOut}
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-red-500 transition-colors hover:bg-red-50 disabled:opacity-70"
         >
           <LogOut className="h-5 w-5 stroke-[1.5]" />
           <span className="text-[15px] font-medium">Logout</span>
