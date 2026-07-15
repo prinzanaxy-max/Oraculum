@@ -9,6 +9,7 @@ import { useThemeStore } from '../store/themeStore';
 import { login, register, signInWithGoogle } from '../api/auth';
 import { Moon, Sun } from 'lucide-react';
 import clsx from 'clsx';
+import treeBackground from '../images/a_standalone_high_resolution_3d_sculpture_of_an_organic_tree_with_an_intricate.png';
 
 // Schemas
 const loginSchema = z.object({
@@ -275,13 +276,17 @@ export const Login = () => {
       </button>
       {/* Left Panel: Brand & Identity */}
       <section className="relative z-10 flex w-full flex-col justify-between overflow-hidden bg-primary-container p-6 sm:p-8 lg:fixed lg:h-screen lg:w-[45%] lg:p-12">
-        {/* Decorative Background Overlay */}
-        <div className="absolute inset-0 opacity-50 mix-blend-soft-light pointer-events-none">
+        {/* Background */}
+        <div className="absolute inset-0 pointer-events-none">
           <img
-            alt="Oraculum Branding"
-            className="w-full h-full object-cover grayscale opacity-60"
-            src="https://lh3.googleusercontent.com/aida/AP1WRLv44hZ34qRskwEZi-QghrjxwO8Sm81wwMO471CR8rF0lSCXaLbofEdNsF7V5kG8VRO_JKDakVtPEokTeUmeG7RqN2b1MyIlhym3xDe8wI9cI2bqUWZxYkv8QHpnWugtstCRhDjXlCTJqsVNAxLtdf9bvYd_Uide2VbCYZN3fKG7RKv69hkhlcpF1C3Cu052qw0moKa6HybNOq_HBAAfSJ_IiTqUFaMtdL-9Cyif3N0f31MeK-CwWaTqxQ"
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full scale-105 object-cover object-[center_62%]"
+            src={treeBackground}
           />
+          <div className="absolute inset-0 bg-primary-container/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-primary-container/95 via-primary-container/35 to-primary-container/90" />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-container/85 via-primary-container/20 to-transparent" />
         </div>
 
         {/* Branding Header */}
