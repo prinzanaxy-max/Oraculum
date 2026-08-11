@@ -69,9 +69,9 @@ export const StudentLogin: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-app-bg font-sans text-app-text">
+    <div className="flex min-h-screen w-full flex-col bg-app-bg font-sans text-app-text">
       {/* Navbar */}
-      <header className="flex items-center justify-between border-b border-app-border bg-app-surface px-6 py-4">
+      <header className="flex h-16 w-full shrink-0 items-center justify-between border-b border-app-border bg-app-surface px-6">
         <div className="cursor-pointer" onClick={() => navigate('/')}>
           <OraculumLogo wordmarkClassName="text-xl" />
         </div>
@@ -95,10 +95,10 @@ export const StudentLogin: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Login Card */}
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md space-y-6">
-          <div className="rounded-2xl border border-app-border bg-app-surface p-8 shadow-xl">
+      {/* Main Centered Login Card */}
+      <main className="flex flex-1 w-full flex-col items-center justify-center px-4 py-8 sm:py-12">
+        <div className="w-full max-w-[440px] shrink-0 space-y-6">
+          <div className="w-full rounded-2xl border border-app-border bg-app-surface p-6 sm:p-8 shadow-xl">
             {/* Header / Badge */}
             <div className="text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-gold/15 text-amber-gold">
