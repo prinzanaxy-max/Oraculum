@@ -12,6 +12,7 @@ interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
 
 const AUTH_ROUTES = [
   '/auth/login',
+  '/auth/student/login',
   '/auth/signup',
   '/auth/google',
   '/auth/refresh',
