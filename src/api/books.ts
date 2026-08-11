@@ -43,6 +43,8 @@ const normalizeBooks = (payload: Book[] | BooksResponse): Book[] => {
   return payload.books ?? payload.data ?? [];
 };
 
+export type { Book };
+
 export const getBooks = async ({ query, fields }: BooksQuery = {}): Promise<Book[]> => {
   const response = await api.get<Book[] | BooksResponse>('/books', {
     params: {
@@ -52,6 +54,18 @@ export const getBooks = async ({ query, fields }: BooksQuery = {}): Promise<Book
   });
 
   return normalizeBooks(response.data);
+};
+
+export const getAllBooks = getBooks;
+
+export const getBookById = async (id: string): Promise<Book | null> => {
+  try {
+    const response = await api.get<Book | BookResponse>(`/books/${id}`);
+    return normalizeBook(response.data);
+  } catch {
+    const books = await getBooks();
+    return books.find((b) => b.id === id) || null;
+  }
 };
 
 export const createBook = async (payload: BookPayload): Promise<Book> => {

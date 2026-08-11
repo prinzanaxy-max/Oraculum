@@ -3,9 +3,18 @@ import { api } from './axios';
 export interface AdminProfile {
   id: string;
   name: string;
+  fullName?: string;
   email: string;
   phone?: string;
   avatarUrl?: string;
+  studentId?: string;
+  department?: string;
+  role?: 'admin' | 'student';
+}
+
+export interface StudentLoginPayload {
+  usernameOrEmail: string;
+  studentId: string;
 }
 
 export interface ChangePasswordPayload {
@@ -62,6 +71,9 @@ type AdminProfileSource = {
   email?: string;
   phone?: string | null;
   avatarUrl?: string | null;
+  studentId?: string;
+  department?: string;
+  role?: 'admin' | 'student';
 };
 
 export const normalizeAdminProfile = (data: unknown): AdminProfile => {
@@ -73,17 +85,25 @@ export const normalizeAdminProfile = (data: unknown): AdminProfile => {
   return {
     id: source.id ?? '',
     name: source.name || source.fullName || source.email || '',
+    fullName: source.fullName || source.name,
     email: source.email ?? '',
     phone: source.phone ?? undefined,
     avatarUrl: source.avatarUrl ?? undefined,
+    studentId: source.studentId ?? undefined,
+    department: source.department ?? undefined,
+    role: source.role ?? (source.studentId ? 'student' : 'admin'),
   };
 };
 
 export const toAuthUser = (profile: AdminProfile) => ({
   id: profile.id,
   name: profile.name,
+  fullName: profile.fullName || profile.name,
   email: profile.email,
   avatarUrl: profile.avatarUrl,
+  studentId: profile.studentId,
+  department: profile.department,
+  role: profile.role || (profile.studentId ? 'student' : 'admin'),
 });
 
 export const toAdminProfile = (user: AvatarUploadUser): AdminProfile => ({
@@ -171,6 +191,11 @@ export const revokeOtherAuthSessions = async (
 
 export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
   const response = await api.post<AuthResponse>('/auth/login', payload);
+  return response.data;
+};
+
+export const studentLogin = async (payload: StudentLoginPayload): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>('/auth/student/login', payload);
   return response.data;
 };
 

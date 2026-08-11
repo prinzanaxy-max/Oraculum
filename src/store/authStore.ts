@@ -1,17 +1,23 @@
 import { create } from 'zustand';
 
-interface AdminUser {
+export interface AuthUser {
   id: string;
   name: string;
+  fullName?: string;
   email: string;
+  studentId?: string;
+  department?: string;
   avatarUrl?: string;
+  role?: 'admin' | 'student';
 }
+
+export type AdminUser = AuthUser;
 
 interface AuthState {
   token: string | null;
   refreshToken: string | null;
-  user: AdminUser | null;
-  setAuth: (token: string, user?: AdminUser | null, refreshToken?: string) => void;
+  user: AuthUser | null;
+  setAuth: (token: string, user?: AuthUser | null, refreshToken?: string) => void;
   logout: () => void;
 }
 
