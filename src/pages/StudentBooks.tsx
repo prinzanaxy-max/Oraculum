@@ -88,6 +88,7 @@ export const StudentBooks: React.FC = () => {
   });
 
   const books: Book[] = booksQuery.data || [];
+  const reservations = reservationsQuery.data || [];
 
   const categories = useMemo(() => {
     const list = Array.from(new Set(books.map((b: Book) => b.category || 'General'))).filter(
@@ -97,8 +98,8 @@ export const StudentBooks: React.FC = () => {
   }, [books]);
 
   const reservedBookIds = useMemo(
-    () => new Set((reservationsQuery.data || []).map((reservation) => reservation.bookId)),
-    [reservationsQuery.data]
+    () => new Set((reservations || []).map((reservation) => reservation.bookId)),
+    [reservations]
   );
 
   const filteredBooks = useMemo(() => {
@@ -157,39 +158,95 @@ export const StudentBooks: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by title, author, category, or ISBN..."
-              className="w-full rounded-xl border border-app-border bg-app-surface-muted py-2.5 pl-10 pr-4 text-sm text-app-text outline-none transition-colors focus:border-amber-gold focus:ring-1 focus:ring-amber-gold"
-            />
+      <div className="grid gap-4 xl:grid-cols-[1fr_minmax(280px,380px)]">
+        <div className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm sm:p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-500">
+                Reservation queue
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-app-text">{reservations.length}</p>
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                {reservations.length
+                  ? 'Active book reservations in your account.'
+                  : 'You have no active reservations yet.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/student/reservations')}
+              className="rounded-xl bg-amber-gold px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-amber-gold-dark"
+            >
+              View Reservations
+            </button>
           </div>
+
+          {reservationsQuery.isLoading ? (
+            <div className="mt-6 py-8 text-center text-xs text-gray-400">
+              Loading reservations...
+            </div>
+          ) : reservations.length > 0 ? (
+            <div className="mt-6 space-y-3">
+              {reservations.slice(0, 3).map((reservation) => (
+                <div
+                  key={reservation.id}
+                  className="rounded-2xl border border-app-border bg-app-surface-muted p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-app-text">
+                      {reservation.book?.title ?? 'Reserved Book'}
+                    </p>
+                    <span className="rounded-full bg-amber-gold/10 px-2 py-1 text-[11px] font-semibold text-amber-gold">
+                      Queue #{reservation.queuePosition || 1}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    {reservation.status.replace(/_/g, ' ')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed border-app-border p-5 text-center text-xs text-gray-500">
+              Reserve unavailable books from the catalog and they will appear here.
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-app-border/50">
-          <span className="flex items-center gap-1 text-xs font-medium text-gray-500 mr-1">
-            <Filter className="h-3.5 w-3.5" />
-            <span>Category:</span>
-          </span>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                selectedCategory === cat
-                  ? 'bg-amber-gold text-white font-semibold'
-                  : 'bg-app-surface-muted text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-800'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by title, author, category, or ISBN..."
+                className="w-full rounded-xl border border-app-border bg-app-surface-muted py-2.5 pl-10 pr-4 text-sm text-app-text outline-none transition-colors focus:border-amber-gold focus:ring-1 focus:ring-amber-gold"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-app-border/50">
+            <span className="flex items-center gap-1 text-xs font-medium text-gray-500 mr-1">
+              <Filter className="h-3.5 w-3.5" />
+              <span>Category:</span>
+            </span>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  selectedCategory === cat
+                    ? 'bg-amber-gold text-white font-semibold'
+                    : 'bg-app-surface-muted text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-800'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
