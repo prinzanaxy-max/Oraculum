@@ -30,6 +30,8 @@ export const StudentBooks: React.FC = () => {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+  const [activeBorrowId, setActiveBorrowId] = useState<string | null>(null);
+  const [activeReserveId, setActiveReserveId] = useState<string | null>(null);
 
   const booksQuery = useQuery<Book[]>({
     queryKey: ['student-books-list'],
@@ -63,6 +65,9 @@ export const StudentBooks: React.FC = () => {
       }
       setActionMessage({ type: 'error', text: message });
     },
+    onSettled: () => {
+      setActiveBorrowId(null);
+    },
   });
 
   const reserveMutation = useMutation({
@@ -84,6 +89,9 @@ export const StudentBooks: React.FC = () => {
         message = error.message;
       }
       setActionMessage({ type: 'error', text: message });
+    },
+    onSettled: () => {
+      setActiveReserveId(null);
     },
   });
 
@@ -120,11 +128,13 @@ export const StudentBooks: React.FC = () => {
 
   const handleBorrow = (bookId: string) => {
     setActionMessage(null);
+    setActiveBorrowId(bookId);
     borrowMutation.mutate(bookId);
   };
 
   const handleReserve = (bookId: string) => {
     setActionMessage(null);
+    setActiveReserveId(bookId);
     reserveMutation.mutate(bookId);
   };
 
@@ -321,21 +331,29 @@ export const StudentBooks: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleBorrow(book.id)}
-                      disabled={borrowMutation.isPending}
+                      disabled={activeBorrowId === book.id && borrowMutation.isPending}
                       className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-gold py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-gold-dark disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <BookMarked className="h-4 w-4" />
-                      <span>{borrowMutation.isPending ? 'Borrowing...' : 'Borrow Book'}</span>
+                      <span>
+                        {activeBorrowId === book.id && borrowMutation.isPending
+                          ? 'Borrowing...'
+                          : 'Borrow Book'}
+                      </span>
                     </button>
                   ) : canReserve ? (
                     <button
                       type="button"
                       onClick={() => handleReserve(book.id)}
-                      disabled={reserveMutation.isPending}
+                      disabled={activeReserveId === book.id && reserveMutation.isPending}
                       className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-gold py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-gold-dark disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <BookMarked className="h-4 w-4" />
-                      <span>{reserveMutation.isPending ? 'Reserving...' : 'Reserve Book'}</span>
+                      <span>
+                        {activeReserveId === book.id && reserveMutation.isPending
+                          ? 'Reserving...'
+                          : 'Reserve Book'}
+                      </span>
                     </button>
                   ) : (
                     <button

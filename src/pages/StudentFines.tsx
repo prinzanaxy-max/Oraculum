@@ -20,6 +20,7 @@ export const StudentFines: React.FC = () => {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+  const [activeFineId, setActiveFineId] = useState<string | null>(null);
 
   const {
     data: fines = [],
@@ -52,6 +53,9 @@ export const StudentFines: React.FC = () => {
         error instanceof Error ? error.message : 'Unable to complete payment. Please try again.';
       setAlertMessage({ type: 'error', text: message });
     },
+    onSettled: () => {
+      setActiveFineId(null);
+    },
   });
 
   const payAllMutation = useMutation({
@@ -69,6 +73,9 @@ export const StudentFines: React.FC = () => {
       const message =
         error instanceof Error ? error.message : 'Unable to complete payment. Please try again.';
       setAlertMessage({ type: 'error', text: message });
+    },
+    onSettled: () => {
+      setActiveFineId(null);
     },
   });
 
@@ -230,11 +237,16 @@ export const StudentFines: React.FC = () => {
                 <div className="flex items-center justify-end">
                   <button
                     type="button"
-                    onClick={() => payFineMutation.mutate(fine.id)}
-                    disabled={payFineMutation.isPending}
+                    onClick={() => {
+                      setActiveFineId(fine.id);
+                      payFineMutation.mutate(fine.id);
+                    }}
+                    disabled={activeFineId === fine.id && payFineMutation.isPending}
                     className="inline-flex items-center justify-center rounded-xl bg-amber-gold px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-gold-dark disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {payFineMutation.isPending ? 'Processing...' : 'Pay Now'}
+                    {activeFineId === fine.id && payFineMutation.isPending
+                      ? 'Processing...'
+                      : 'Pay Now'}
                   </button>
                 </div>
               </div>
