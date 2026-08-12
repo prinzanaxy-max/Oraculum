@@ -2,7 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { getStudentBorrows, getStudentReservations, getReadingProgressMap } from '../api/student';
+import {
+  getStudentBorrows,
+  getStudentReservations,
+  getStudentFines,
+  getReadingProgressMap,
+} from '../api/student';
 import { getAllBooks } from '../api/books';
 import type { Book } from '../types';
 import {
@@ -34,6 +39,12 @@ export const StudentDashboard: React.FC = () => {
     queryFn: () => getStudentReservations(memberId),
   });
 
+  const finesQuery = useQuery({
+    queryKey: ['student-fines', memberId],
+    queryFn: () => getStudentFines(memberId, 'pending'),
+    enabled: Boolean(memberId),
+  });
+
   const booksQuery = useQuery<Book[]>({
     queryKey: ['student-all-books'],
     queryFn: () => getAllBooks(),
@@ -47,7 +58,10 @@ export const StudentDashboard: React.FC = () => {
 
   const activeBorrows = borrows.filter((b) => b.status === 'BORROWED' || b.status === 'OVERDUE');
   const returnedBorrows = borrows.filter((b) => b.status === 'RETURNED');
-  const activeReservations = reservations.filter((r) => r.status === 'PENDING' || r.status === 'READY_FOR_PICKUP');
+  const activeReservations = reservations.filter(
+    (r) => r.status === 'PENDING' || r.status === 'READY_FOR_PICKUP'
+  );
+  const outstandingFines = finesQuery.data || [];
 
   // Featured books for online reading preview
   const featuredReadingBooks = books.slice(0, 4);
@@ -64,10 +78,12 @@ export const StudentDashboard: React.FC = () => {
               <span>Student Learning Center</span>
             </div>
             <h1 className="mt-2 font-serif text-2xl font-normal text-app-text sm:text-3xl">
-              Welcome back, <span className="italic font-normal text-amber-gold">{studentName}</span>
+              Welcome back,{' '}
+              <span className="italic font-normal text-amber-gold">{studentName}</span>
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Track your borrowed books, upcoming due dates, reservations, and online reading progress.
+              Track your borrowed books, upcoming due dates, reservations, and online reading
+              progress.
             </p>
           </div>
 
@@ -87,7 +103,9 @@ export const StudentDashboard: React.FC = () => {
         {/* Metric 1 */}
         <div className="rounded-2xl border border-app-border bg-app-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Active Borrowed</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Active Borrowed
+            </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-gold/15 text-amber-gold">
               <BookmarkCheck className="h-5 w-5" />
             </div>
@@ -99,7 +117,9 @@ export const StudentDashboard: React.FC = () => {
         {/* Metric 2 */}
         <div className="rounded-2xl border border-app-border bg-app-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Reservations</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Reservations
+            </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-gold/15 text-amber-gold">
               <CalendarCheck className="h-5 w-5" />
             </div>
@@ -111,7 +131,9 @@ export const StudentDashboard: React.FC = () => {
         {/* Metric 3 */}
         <div className="rounded-2xl border border-app-border bg-app-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Books Returned</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Books Returned
+            </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/15 text-green-600 dark:text-green-400">
               <CheckCircle2 className="h-5 w-5" />
             </div>
@@ -123,13 +145,31 @@ export const StudentDashboard: React.FC = () => {
         {/* Metric 4 */}
         <div className="rounded-2xl border border-app-border bg-app-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Digital Reading</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Digital Reading
+            </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-gold/15 text-amber-gold">
               <BookMarked className="h-5 w-5" />
             </div>
           </div>
-          <p className="mt-4 text-3xl font-bold text-app-text">{Object.keys(readingProgressMap).length}</p>
+          <p className="mt-4 text-3xl font-bold text-app-text">
+            {Object.keys(readingProgressMap).length}
+          </p>
           <p className="mt-1 text-xs text-gray-400">Books read online</p>
+        </div>
+
+        {/* Metric 5 */}
+        <div className="rounded-2xl border border-app-border bg-app-surface p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Outstanding Fines
+            </span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15 text-red-600 dark:text-red-400">
+              <CalendarCheck className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-4 text-3xl font-bold text-app-text">{outstandingFines.length}</p>
+          <p className="mt-1 text-xs text-gray-400">Pending fines linked to your account</p>
         </div>
       </div>
 
@@ -141,8 +181,12 @@ export const StudentDashboard: React.FC = () => {
           <div className="rounded-2xl border border-app-border bg-app-surface p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-app-border pb-4">
               <div>
-                <h2 className="font-serif text-xl font-normal text-app-text">Current Borrowed Books</h2>
-                <p className="text-xs text-gray-500">Keep track of your active loans and due dates</p>
+                <h2 className="font-serif text-xl font-normal text-app-text">
+                  Current Borrowed Books
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Keep track of your active loans and due dates
+                </p>
               </div>
               <button
                 type="button"
@@ -156,12 +200,16 @@ export const StudentDashboard: React.FC = () => {
 
             <div className="mt-6 space-y-4">
               {borrowsQuery.isLoading ? (
-                <div className="py-8 text-center text-xs text-gray-400">Loading your loan records...</div>
+                <div className="py-8 text-center text-xs text-gray-400">
+                  Loading your loan records...
+                </div>
               ) : activeBorrows.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-app-border p-8 text-center">
                   <BookOpen className="mx-auto h-8 w-8 text-gray-400" />
                   <p className="mt-2 text-sm font-semibold text-app-text">No active book loans</p>
-                  <p className="mt-1 text-xs text-gray-500">You currently have no borrowed books from the library.</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    You currently have no borrowed books from the library.
+                  </p>
                   <button
                     type="button"
                     onClick={() => navigate('/student/books')}
@@ -190,9 +238,15 @@ export const StudentDashboard: React.FC = () => {
                           <BookOpen className="h-6 w-6 stroke-[1.5]" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-app-text">{record.book?.title || 'Library Book'}</h3>
-                          <p className="text-xs text-gray-500">{record.book?.author || 'Unknown Author'}</p>
-                          <p className="mt-1 text-[11px] text-gray-400">ISBN: {record.book?.isbn || 'N/A'}</p>
+                          <h3 className="font-semibold text-app-text">
+                            {record.book?.title || 'Library Book'}
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            {record.book?.author || 'Unknown Author'}
+                          </p>
+                          <p className="mt-1 text-[11px] text-gray-400">
+                            ISBN: {record.book?.isbn || 'N/A'}
+                          </p>
                         </div>
                       </div>
 
@@ -227,8 +281,12 @@ export const StudentDashboard: React.FC = () => {
           <div className="rounded-2xl border border-app-border bg-app-surface p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-app-border pb-4">
               <div>
-                <h2 className="font-serif text-xl font-normal text-app-text">Digital Reading Room</h2>
-                <p className="text-xs text-gray-500">Instant access to read available books online</p>
+                <h2 className="font-serif text-xl font-normal text-app-text">
+                  Digital Reading Room
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Instant access to read available books online
+                </p>
               </div>
               <Sparkles className="h-5 w-5 text-amber-gold" />
             </div>
@@ -278,21 +336,30 @@ export const StudentDashboard: React.FC = () => {
 
             <div className="mt-4 space-y-3">
               {reservationsQuery.isLoading ? (
-                <div className="py-6 text-center text-xs text-gray-400">Loading reservations...</div>
+                <div className="py-6 text-center text-xs text-gray-400">
+                  Loading reservations...
+                </div>
               ) : activeReservations.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-app-border p-6 text-center text-xs text-gray-500">
                   No pending reservations.
                 </div>
               ) : (
                 activeReservations.map((res) => (
-                  <div key={res.id} className="rounded-xl border border-app-border bg-app-surface-muted p-3.5">
+                  <div
+                    key={res.id}
+                    className="rounded-xl border border-app-border bg-app-surface-muted p-3.5"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-app-text">{res.book?.title || 'Reserved Book'}</span>
+                      <span className="text-xs font-semibold text-app-text">
+                        {res.book?.title || 'Reserved Book'}
+                      </span>
                       <span className="rounded-full bg-amber-gold/15 px-2 py-0.5 text-[10px] font-bold text-amber-gold">
                         Queue #{res.queuePosition || 1}
                       </span>
                     </div>
-                    <p className="mt-1 text-[11px] text-gray-500">{res.book?.category || 'General'}</p>
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      {res.book?.category || 'General'}
+                    </p>
                     <div className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-400">
                       <Clock className="h-3 w-3" />
                       <span>Status: {res.status.replace(/_/g, ' ')}</span>
@@ -310,7 +377,8 @@ export const StudentDashboard: React.FC = () => {
               <span>Student Library Notice</span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-              Standard loan duration is 14 days per book. You may read any available catalog title digitally 24/7 without checking out a physical copy.
+              Standard loan duration is 14 days per book. You may read any available catalog title
+              digitally 24/7 without checking out a physical copy.
             </p>
           </div>
         </div>

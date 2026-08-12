@@ -1,4 +1,5 @@
 import { api } from './axios';
+import type { Fine } from '../types';
 
 export interface StudentBorrowRecord {
   id: string;
@@ -70,6 +71,26 @@ export const getStudentReservations = async (memberId: string): Promise<StudentR
     return items.filter((r: StudentReservation) => r.memberId === memberId || !memberId);
   } catch (error) {
     console.error('Failed to fetch student reservations', error);
+    return [];
+  }
+};
+
+export const getStudentFines = async (
+  memberId: string,
+  status?: Fine['status']
+): Promise<Fine[]> => {
+  try {
+    const response = await api.get<any>('/fines', {
+      params: {
+        ...(status ? { status } : {}),
+        memberId,
+      },
+    });
+    const raw = response.data?.data || response.data?.fines || response.data || [];
+    const items = Array.isArray(raw) ? raw : [];
+    return items;
+  } catch (error) {
+    console.error('Failed to fetch student fines', error);
     return [];
   }
 };

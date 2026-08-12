@@ -14,9 +14,12 @@ const normalizeFines = (payload: Fine[] | FinesResponse): Fine[] => {
   return payload.fines ?? payload.data ?? [];
 };
 
-export const getFines = async (status?: Fine['status']): Promise<Fine[]> => {
+export const getFines = async (status?: Fine['status'], memberId?: string): Promise<Fine[]> => {
   const response = await api.get<Fine[] | FinesResponse>('/fines', {
-    params: status ? { status } : undefined,
+    params: {
+      ...(status ? { status } : {}),
+      ...(memberId ? { memberId } : {}),
+    },
   });
 
   return normalizeFines(response.data);

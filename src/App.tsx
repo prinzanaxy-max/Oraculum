@@ -28,6 +28,7 @@ import { StudentBooks } from './pages/StudentBooks';
 import { StudentReader } from './pages/StudentReader';
 import { StudentBorrowed } from './pages/StudentBorrowed';
 import { StudentReservations } from './pages/StudentReservations';
+import { StudentFines } from './pages/StudentFines';
 
 import { useThemeStore } from './store/themeStore';
 
@@ -87,6 +88,7 @@ function App() {
             <Route path="reader/:bookId" element={<StudentReader />} />
             <Route path="borrowed" element={<StudentBorrowed />} />
             <Route path="reservations" element={<StudentReservations />} />
+            <Route path="fines" element={<StudentFines />} />
           </Route>
 
           {/* Fallback */}

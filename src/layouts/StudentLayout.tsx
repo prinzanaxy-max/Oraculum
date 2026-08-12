@@ -9,6 +9,7 @@ import {
   BookOpen,
   BookmarkCheck,
   CalendarCheck,
+  CreditCard,
   LogOut,
   Moon,
   Sun,
@@ -24,6 +25,7 @@ const studentNavItems = [
   { to: '/student/books', label: 'Book Catalog', icon: BookOpen },
   { to: '/student/borrowed', label: 'My Borrowed Books', icon: BookmarkCheck },
   { to: '/student/reservations', label: 'My Reservations', icon: CalendarCheck },
+  { to: '/student/fines', label: 'My Fines', icon: CreditCard },
 ];
 
 export const StudentLayout = () => {
@@ -162,7 +164,9 @@ export const StudentLayout = () => {
             </button>
             <div className="hidden sm:block">
               <h2 className="text-base font-semibold text-app-text">{studentName}</h2>
-              <p className="text-xs text-gray-500">{department} &bull; ID: {studentId}</p>
+              <p className="text-xs text-gray-500">
+                {department} &bull; ID: {studentId}
+              </p>
             </div>
           </div>
 
