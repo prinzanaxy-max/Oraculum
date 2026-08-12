@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { getStudentFines } from '../api/student';
-import { BookmarkCheck, CalendarCheck, BookOpen, GraduationCap } from 'lucide-react';
+import { BookmarkCheck, BookOpen, GraduationCap } from 'lucide-react';
 
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat('en-US', {
